@@ -1,123 +1,98 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import '../styles/Home.css';
 
 export default function Home() {
-    const navigate = useNavigate()
-    const { user } = useAuth()
+    const navigate = useNavigate();
+    const { user, loading } = useAuth();
+
+    if (loading) {
+        return <div className="loading-spinner">Loading...</div>;
+    }
+
+    if (!user) {
+        return (
+            <div className="landing-hero">
+                <div className="hero-content">
+                    <h1>Welcome to Bookstore</h1>
+                    <p>Discover your next favorite book across Physical, Digital, formats</p>
+                    <div className="hero-buttons">
+                        <button className="btn-primary" onClick={() => navigate('/login')}>
+                            Login
+                        </button>
+                        <button className="btn-secondary" onClick={() => navigate('/register')}>
+                            Register
+                        </button>
+                    </div>
+                </div>
+
+                <div className="features-grid">
+                    <div className="feature-card">
+                        <h3>📚 Diverse Formats</h3>
+                        <p>Choose from Physical books, Digital ebooks to suit your lifestyle.</p>
+                    </div>
+                    <div className="feature-card">
+                        <h3>🔍 Smart Search</h3>
+                        <p>Easily search and filter thousands of books by title, author, and more.</p>
+                    </div>
+                    <div className="feature-card">
+                        <h3>📖 Personal Library</h3>
+                        <p>Access your digital books anytime, anywhere from your personal library.</p>
+                    </div>
+                    <div className="feature-card">
+                        <h3>🛒 Secure Checkout</h3>
+                        <p>Shop with confidence with our secure payment and order management system.</p>
+                    </div>
+                    <div className="feature-card">
+                        <h3>⚡ Fast Delivery</h3>
+                        <p>Instant access to digital books, shipped books delivered fast.</p>
+                    </div>
+                    <div className="feature-card">
+                        <h3>⭐ Premium Access</h3>
+                        <p>Get exclusive premium features, discounts and early access to new releases.</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div style={{ minHeight: 'calc(100vh - 120px)', backgroundColor: '#ecf0f1' }}>
-            <div
-                style={{
-                    background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
-                    color: 'white',
-                    padding: '4rem 2rem',
-                    textAlign: 'center'
-                }}
-            >
-                <div className="container">
-                    <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-                        📚 Welcome to Bookstore
-                    </h1>
-                    <p style={{ fontSize: '1.25rem', marginBottom: '2rem' }}>
-                        Discover your next favorite book across Physical, Digital, and Audio formats
-                    </p>
-                    {user ? (
-                        <button
-                            className="btn btn-success"
-                            onClick={() => navigate('/books')}
-                            style={{ fontSize: '1.1rem', padding: '1rem 2rem' }}
-                        >
-                            Browse Catalog
-                        </button>
-                    ) : (
-                        <div>
-                            <button
-                                className="btn btn-success"
-                                onClick={() => navigate('/login')}
-                                style={{ fontSize: '1.1rem', padding: '1rem 2rem', marginRight: '1rem' }}
-                            >
-                                Login
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={() => navigate('/register')}
-                                style={{ fontSize: '1.1rem', padding: '1rem 2rem' }}
-                            >
-                                Register
-                            </button>
-                        </div>
-                    )}
-                </div>
+        <div className="home-dashboard">
+            <div className="welcome-section">
+                <h1>Welcome, {user.username}!</h1>
+                <p>Continue your reading journey</p>
             </div>
 
-            <div className="container" style={{ padding: '4rem 0' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: '#2c3e50' }}>
-                    Why Choose Our Bookstore?
-                </h2>
-
-                <div className="grid grid-3">
-                    <div className="card">
-                        <h3 className="card-title">📖 Diverse Formats</h3>
-                        <p className="card-description">
-                            Choose from Physical books, Digital ebooks, and Audio books to suit your lifestyle.
-                        </p>
-                    </div>
-
-                    <div className="card">
-                        <h3 className="card-title">🔍 Smart Search</h3>
-                        <p className="card-description">
-                            Easily search and filter thousands of books by title, author, and more.
-                        </p>
-                    </div>
-
-                    <div className="card">
-                        <h3 className="card-title">📚 Personal Library</h3>
-                        <p className="card-description">
-                            Access your digital and audio books anytime, anywhere from your personal library.
-                        </p>
-                    </div>
-
-                    <div className="card">
-                        <h3 className="card-title">💳 Secure Checkout</h3>
-                        <p className="card-description">
-                            Shop with confidence with our secure payment and order management system.
-                        </p>
-                    </div>
-
-                    <div className="card">
-                        <h3 className="card-title">⚡ Fast Delivery</h3>
-                        <p className="card-description">
-                            Instant access to digital books and audio content, shipped books delivered fast.
-                        </p>
-                    </div>
-
-                    <div className="card">
-                        <h3 className="card-title">👥 Community</h3>
-                        <p className="card-description">
-                            Join thousands of readers and manage your orders easily.
-                        </p>
-                    </div>
-                </div>
+            <div className="quick-actions">
+                <button className="action-btn" onClick={() => navigate('/books')}>
+                    📚 Browse Catalog
+                </button>
+                <button className="action-btn" onClick={() => navigate('/orders')}>
+                    📋 My Orders
+                </button>
+                <button className="action-btn" onClick={() => navigate('/library')}>
+                    📖 Digital Library
+                </button>
+                <button className="action-btn" onClick={() => navigate('/cart')}>
+                    🛒 Shopping Cart
+                </button>
             </div>
 
-            {user && user.role === 'Admin' && (
-                <div style={{ backgroundColor: '#fff3cd', padding: '2rem', marginTop: '2rem' }}>
-                    <div className="container">
-                        <h2 style={{ color: '#856404', marginBottom: '1rem' }}>Admin Panel</h2>
-                        <p style={{ color: '#856404', marginBottom: '1rem' }}>
-                            You have administrator privileges. Manage books, orders, and users from your dashboard.
-                        </p>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => navigate('/admin')}
-                        >
-                            Go to Admin Dashboard
-                        </button>
-                    </div>
+            {(user.role === 'Admin' || user.role === 'Moderator') && (
+                <div className="admin-section">
+                    <h2>Dashboard</h2>
+                    <button className="admin-btn" onClick={() => navigate('/admin')}>
+                        Go to Dashboard
+                    </button>
+                </div>
+            )}
+
+            {user.is_premium && (
+                <div className="premium-badge">
+                    <p>✨ Premium Member until {new Date(user.premium_until).toLocaleDateString()}</p>
                 </div>
             )}
         </div>
-    )
+    );
 }

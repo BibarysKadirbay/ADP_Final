@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { orderAPI } from '../api'
+import { orderAPI } from '../api.jsx'
 
 export default function Orders() {
     const [orders, setOrders] = useState([])
@@ -72,7 +72,7 @@ export default function Orders() {
                                 {orders.map((order) => (
                                     <tr key={order.id}>
                                         <td>{order.id.substring(0, 8)}...</td>
-                                        <td>{new Date(order.order_date).toLocaleDateString()}</td>
+                                        <td>{new Date(order.created_at || order.order_date).toLocaleDateString()}</td>
                                         <td>
                                             <span
                                                 style={{

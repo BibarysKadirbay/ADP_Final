@@ -17,7 +17,7 @@ export default function Header() {
         <header>
             <nav className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Link to="/" className="logo">
-                    📚 Bookstore
+                    Bookstore
                 </Link>
 
                 <ul className="nav-links">
@@ -26,15 +26,12 @@ export default function Header() {
                     </li>
                     {user && (
                         <>
-                            <li>
-                                <Link to="/library">📖 Library</Link>
-                            </li>
-                            <li>
-                                <Link to="/orders">📋 Orders</Link>
-                            </li>
+                            <li><Link to="/library">Library</Link></li>
+                            <li><Link to="/wishlist">Wishlist</Link></li>
+                            <li><Link to="/orders">Orders</Link></li>
                             {isAdmin && (
                                 <li>
-                                    <Link to="/admin">⚙️ Admin</Link>
+                                    <Link to="/admin"> Admin</Link>
                                 </li>
                             )}
                         </>
@@ -46,10 +43,12 @@ export default function Header() {
                         <>
                             <div style={{ color: 'white', fontSize: '0.9rem' }}>
                                 {user.username}
-                                {isAdmin && <span style={{ marginLeft: '0.5rem', color: '#f39c12' }}>(Admin)</span>}
+                                {isAdmin && <span style={{ marginLeft: '0.5rem', color: '#f39c12' }}>Admin</span>}
+                                {user.role === 'Moderator' && !isAdmin && <span style={{ marginLeft: '0.5rem', color: '#9b59b6' }}>Moderator</span>}
+                                {user.is_premium && <span style={{ marginLeft: '0.5rem', color: '#2ecc71' }}>Premium</span>}
                             </div>
                             <Link to="/cart" style={{ position: 'relative', color: 'white', textDecoration: 'none' }}>
-                                🛒 Cart
+                                Cart
                                 {getTotalItems() > 0 && (
                                     <span
                                         style={{

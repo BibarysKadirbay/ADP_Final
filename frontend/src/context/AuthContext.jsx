@@ -1,19 +1,19 @@
 import React, { createContext, useState, useEffect } from 'react'
-import { authAPI } from '../api.js'
+import { authAPI } from '../api.jsx'
 
 export const AuthContext = createContext()
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null)
-    const [token, setToken] = useState(localStorage.getItem('token'))
+    const [token, setToken] = useState(() => localStorage.getItem('token'))
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (token) {
-            fetchProfile()
-        } else {
+        if (!token) {
             setLoading(false)
+            return
         }
+        fetchProfile()
     }, [token])
 
     const fetchProfile = async () => {
@@ -21,9 +21,9 @@ export const AuthProvider = ({ children }) => {
             const response = await authAPI.getProfile()
             setUser(response.data)
         } catch (error) {
-            console.error('Failed to fetch profile:', error)
             localStorage.removeItem('token')
             setToken(null)
+            setUser(null)
         } finally {
             setLoading(false)
         }
@@ -58,9 +58,11 @@ export const AuthProvider = ({ children }) => {
     }
 
     const isAdmin = user?.role === 'Admin'
+    const isModerator = user?.role === 'Moderator' || isAdmin
+    const isPremium = !!user?.is_premium
 
     return (
-        <AuthContext.Provider value={{ user, token, loading, login, register, logout, isAdmin }}>
+        <AuthContext.Provider value={{ user, token, loading, login, register, logout, isAdmin, isModerator, isPremium }}>
             {children}
         </AuthContext.Provider>
     )

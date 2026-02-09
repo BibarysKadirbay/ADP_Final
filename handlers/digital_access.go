@@ -12,28 +12,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// DigitalAccessHandler handles digital and audio book access
 type DigitalAccessHandler struct {
 	digitalAccessCollection *mongo.Collection
-	bookFormatsCollection   *mongo.Collection
 	booksCollection         *mongo.Collection
 }
 
-// NewDigitalAccessHandler creates a new digital access handler
 func NewDigitalAccessHandler(
 	digitalAccessCollection,
-	bookFormatsCollection,
-	booksCollection *mongo.Collection,
+	booksCollection,
+	booksCollection2 *mongo.Collection,
 ) *DigitalAccessHandler {
 	return &DigitalAccessHandler{
 		digitalAccessCollection: digitalAccessCollection,
-		bookFormatsCollection:   bookFormatsCollection,
 		booksCollection:         booksCollection,
 	}
 }
 
-// GetPersonalLibrary returns user's personal library (digital and audio books)
-// GET /library
 func (h *DigitalAccessHandler) GetPersonalLibrary(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -44,7 +38,6 @@ func (h *DigitalAccessHandler) GetPersonalLibrary(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Get all digital access records for user
 	cursor, err := h.digitalAccessCollection.Find(ctx, bson.M{"user_id": userID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch library"})
@@ -60,21 +53,12 @@ func (h *DigitalAccessHandler) GetPersonalLibrary(c *gin.Context) {
 			continue
 		}
 
-		// Check if access expired
 		if access.ExpiryDate != nil && access.ExpiryDate.Before(time.Now()) {
 			continue
 		}
 
-		// Get format details
-		var format models.BookFormat
-		err := h.bookFormatsCollection.FindOne(ctx, bson.M{"_id": access.FormatID}).Decode(&format)
-		if err != nil {
-			continue
-		}
-
-		// Get book details
 		var book models.Book
-		err = h.booksCollection.FindOne(ctx, bson.M{"_id": format.BookID}).Decode(&book)
+		err := h.booksCollection.FindOne(ctx, bson.M{"_id": access.BookID}).Decode(&book)
 		if err != nil {
 			continue
 		}
@@ -84,7 +68,7 @@ func (h *DigitalAccessHandler) GetPersonalLibrary(c *gin.Context) {
 			BookID:       book.ID,
 			BookTitle:    book.Title,
 			BookAuthor:   book.Author,
-			Format:       format.Type,
+			Format:       access.FormatType,
 			AccessURL:    access.AccessURL,
 			AccessedDate: access.AccessGrantedDate,
 		}
@@ -104,8 +88,6 @@ func (h *DigitalAccessHandler) GetPersonalLibrary(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetDigitalBookAccess returns digital/audio book access for a specific format
-// GET /library/:format_id
 func (h *DigitalAccessHandler) GetDigitalBookAccess(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -136,7 +118,6 @@ func (h *DigitalAccessHandler) GetDigitalBookAccess(c *gin.Context) {
 		return
 	}
 
-	// Check if not expired
 	if access.ExpiryDate != nil && access.ExpiryDate.Before(time.Now()) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access has expired"})
 		return
@@ -150,21 +131,11 @@ func (h *DigitalAccessHandler) GetDigitalBookAccess(c *gin.Context) {
 	})
 }
 
-// ListAvailableDigitalBooks returns all available digital and audio books
-// GET /digital-books
 func (h *DigitalAccessHandler) ListAvailableDigitalBooks(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Find digital and audio formats with stock
-	cursor, err := h.bookFormatsCollection.Find(
-		ctx,
-		bson.M{
-			"type":           bson.M{"$in": []string{"Digital", "Audio"}},
-			"stock_quantity": bson.M{"$gt": 0},
-		},
-	)
-
+	cursor, err := h.booksCollection.Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch digital books"})
 		return
@@ -174,27 +145,24 @@ func (h *DigitalAccessHandler) ListAvailableDigitalBooks(c *gin.Context) {
 	var results []gin.H
 
 	for cursor.Next(ctx) {
-		var format models.BookFormat
-		if err := cursor.Decode(&format); err != nil {
-			continue
-		}
-
-		// Get book details
 		var book models.Book
-		err := h.booksCollection.FindOne(ctx, bson.M{"_id": format.BookID}).Decode(&book)
-		if err != nil {
+		if err := cursor.Decode(&book); err != nil {
 			continue
 		}
 
-		results = append(results, gin.H{
-			"format_id":      format.ID,
-			"book_id":        book.ID,
-			"title":          book.Title,
-			"author":         book.Author,
-			"type":           format.Type,
-			"price":          format.Price,
-			"stock_quantity": format.StockQuantity,
-		})
+		for _, format := range book.Formats {
+			if (format.Type == "digital" || format.Type == "both") && format.StockQuantity > 0 {
+				results = append(results, gin.H{
+					"book_id":        book.ID,
+					"title":          book.Title,
+					"author":         book.Author,
+					"image_url":      book.ImageURL,
+					"type":           format.Type,
+					"price":          format.Price,
+					"stock_quantity": format.StockQuantity,
+				})
+			}
+		}
 	}
 
 	if results == nil {
