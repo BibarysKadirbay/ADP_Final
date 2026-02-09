@@ -35,50 +35,52 @@ export default function Register() {
     return (
         <div className="page">
             <div className="container">
-                <form className="form" onSubmit={handleSubmit}>
-                    <h2 className="card-title">Register</h2>
-                    {error && <div className="alert alert-danger">{error}</div>}
+                <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+                    <form className="card" style={{ padding: '2rem' }} onSubmit={handleSubmit}>
+                        <h2 className="card-title">Register</h2>
+                        {error && <div className="alert alert-danger">{error}</div>}
 
-                    <div className="form-group">
-                        <label>Username</label>
-                        <input
-                            type="text"
-                            required
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                        />
-                    </div>
+                        <div className="form-group">
+                            <label>Username</label>
+                            <input
+                                type="text"
+                                required
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                            />
+                        </div>
 
-                    <div className="form-group">
-                        <label>Email</label>
-                        <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                    </div>
+                        <div className="form-group">
+                            <label>Email</label>
+                            <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
 
-                    <div className="form-group">
-                        <label>Password</label>
-                        <input
-                            type="password"
-                            required
-                            minLength="6"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                        <small style={{ color: '#666' }}>Minimum 6 characters</small>
-                    </div>
+                        <div className="form-group">
+                            <label>Password</label>
+                            <input
+                                type="password"
+                                required
+                                minLength="6"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                            <small style={{ color: 'var(--muted)' }}>Minimum 6 characters</small>
+                        </div>
 
-                    <button type="submit" className="btn btn-success btn-block" disabled={loading}>
-                        {loading ? 'Registering...' : 'Register'}
-                    </button>
+                        <button type="submit" className="btn btn-success btn-block" disabled={loading}>
+                            {loading ? 'Registering...' : 'Register'}
+                        </button>
 
-                    <p style={{ marginTop: '1rem', textAlign: 'center', color: '#666' }}>
-                        Already have an account? <Link to="/login">Login here</Link>
-                    </p>
-                </form>
+                        <p style={{ marginTop: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+                            Already have an account? <Link to="/login" style={{ color: 'var(--brown-700)', fontWeight: '600' }}>Login here</Link>
+                        </p>
+                    </form>
+                </div>
             </div>
         </div>
     )

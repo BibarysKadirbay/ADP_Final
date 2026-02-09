@@ -76,21 +76,22 @@ export default function Orders() {
                                         <td>
                                             <span
                                                 style={{
-                                                    padding: '0.25rem 0.75rem',
-                                                    borderRadius: '4px',
+                                                    padding: '0.3rem 0.8rem',
+                                                    borderRadius: '999px',
                                                     fontSize: '0.85rem',
+                                                    fontWeight: '600',
                                                     backgroundColor:
                                                         order.status === 'Completed'
-                                                            ? '#d4edda'
+                                                            ? 'rgba(110, 71, 59, 0.1)'
                                                             : order.status === 'Cancelled'
-                                                                ? '#f8d7da'
-                                                                : '#d1ecf1',
+                                                                ? 'rgba(201, 74, 63, 0.1)'
+                                                                : 'rgba(225, 212, 194, 0.4)',
                                                     color:
                                                         order.status === 'Completed'
-                                                            ? '#155724'
+                                                            ? 'var(--brown-700)'
                                                             : order.status === 'Cancelled'
-                                                                ? '#721c24'
-                                                                : '#0c5460'
+                                                                ? '#c94a3f'
+                                                                : 'var(--muted)'
                                                 }}
                                             >
                                                 {order.status}
