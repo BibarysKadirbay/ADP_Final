@@ -2,6 +2,10 @@ import React, { createContext, useState, useEffect } from 'react'
 
 export const CartContext = createContext()
 
+function cartKey(bookId, formatType) {
+    return bookId + '|' + formatType
+}
+
 export const CartProvider = ({ children }) => {
     const [cart, setCart] = useState(() => {
         const savedCart = localStorage.getItem('cart')
@@ -12,29 +16,40 @@ export const CartProvider = ({ children }) => {
         localStorage.setItem('cart', JSON.stringify(cart))
     }, [cart])
 
-    const addToCart = (format) => {
+    const addToCart = (book, format) => {
+        const id = book.id || book._id
+        const key = cartKey(id, format.type)
         setCart((prevCart) => {
-            const existingItem = prevCart.find((item) => item.id === format.id)
-            if (existingItem) {
+            const existing = prevCart.find((item) => cartKey(item.bookId, item.formatType) === key)
+            if (existing) {
                 return prevCart.map((item) =>
-                    item.id === format.id ? { ...item, quantity: item.quantity + 1 } : item
+                    cartKey(item.bookId, item.formatType) === key ? { ...item, quantity: item.quantity + 1 } : item
                 )
             }
-            return [...prevCart, { ...format, quantity: 1 }]
+            return [...prevCart, {
+                bookId: id,
+                formatType: format.type,
+                price: format.price,
+                quantity: 1,
+                bookTitle: book.title || book.Title,
+                type: format.type,
+            }]
         })
     }
 
-    const removeFromCart = (formatId) => {
-        setCart((prevCart) => prevCart.filter((item) => item.id !== formatId))
+    const removeFromCart = (bookId, formatType) => {
+        const key = cartKey(bookId, formatType)
+        setCart((prev) => prev.filter((item) => cartKey(item.bookId, item.formatType) !== key))
     }
 
-    const updateQuantity = (formatId, quantity) => {
+    const updateQuantity = (bookId, formatType, quantity) => {
         if (quantity <= 0) {
-            removeFromCart(formatId)
+            removeFromCart(bookId, formatType)
         } else {
+            const key = cartKey(bookId, formatType)
             setCart((prevCart) =>
                 prevCart.map((item) =>
-                    item.id === formatId ? { ...item, quantity } : item
+                    cartKey(item.bookId, item.formatType) === key ? { ...item, quantity } : item
                 )
             )
         }
@@ -44,8 +59,9 @@ export const CartProvider = ({ children }) => {
         setCart([])
     }
 
-    const getTotalPrice = () => {
-        return cart.reduce((total, item) => total + item.price * item.quantity, 0)
+    const getTotalPrice = (discountPercent = 0) => {
+        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+        return total * (1 - discountPercent / 100)
     }
 
     const getTotalItems = () => {

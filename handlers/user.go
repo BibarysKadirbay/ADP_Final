@@ -13,20 +13,16 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// UserHandler handles user management operations
 type UserHandler struct {
 	usersCollection *mongo.Collection
 }
 
-// NewUserHandler creates a new user handler
 func NewUserHandler(usersCollection *mongo.Collection) *UserHandler {
 	return &UserHandler{
 		usersCollection: usersCollection,
 	}
 }
 
-// GetAllUsers returns all users (Admin only)
-// GET /admin/users
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -46,7 +42,6 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 			continue
 		}
 
-		// Remove password from response
 		delete(user, "password")
 
 		users = append(users, gin.H(user))
@@ -59,8 +54,6 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
-// GetUserByID returns a specific user (Admin only)
-// GET /admin/users/:id
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	userID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -82,14 +75,11 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 		return
 	}
 
-	// Remove password from response
 	delete(user, "password")
 
 	c.JSON(http.StatusOK, user)
 }
 
-// UpdateUserRole updates a user's role (Admin only)
-// PUT /admin/users/:id/role
 func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 	userID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -131,8 +121,6 @@ func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User role updated successfully"})
 }
 
-// DeleteUser deletes a user (Admin only)
-// DELETE /admin/users/:id
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	userID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -140,7 +128,6 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	// Prevent deleting self
 	currentUserID, err := middleware.GetUserIDFromContext(c)
 	if err == nil && currentUserID == userID {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete your own account"})
@@ -164,27 +151,22 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
-// GetUserStats returns user statistics (Admin only)
-// GET /admin/stats
 func (h *UserHandler) GetUserStats(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Count total users
 	totalUsers, err := h.usersCollection.CountDocuments(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user stats"})
 		return
 	}
 
-	// Count customers
 	customers, err := h.usersCollection.CountDocuments(ctx, bson.M{"role": "Customer"})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user stats"})
 		return
 	}
 
-	// Count admins
 	admins, err := h.usersCollection.CountDocuments(ctx, bson.M{"role": "Admin"})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user stats"})

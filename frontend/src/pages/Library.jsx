@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { digitalAPI } from '../api'
+import { digitalAPI } from '../api.jsx'
 
 export default function Library() {
     const [library, setLibrary] = useState(null)

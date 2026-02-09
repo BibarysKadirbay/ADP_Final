@@ -13,31 +13,27 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// OrderHandler handles order operations
 type OrderHandler struct {
 	ordersCollection        *mongo.Collection
 	orderItemsCollection    *mongo.Collection
-	bookFormatsCollection   *mongo.Collection
+	booksCollection         *mongo.Collection
 	digitalAccessCollection *mongo.Collection
 }
 
-// NewOrderHandler creates a new order handler
 func NewOrderHandler(
 	ordersCollection,
 	orderItemsCollection,
-	bookFormatsCollection,
+	booksCollection,
 	digitalAccessCollection *mongo.Collection,
 ) *OrderHandler {
 	return &OrderHandler{
 		ordersCollection:        ordersCollection,
 		orderItemsCollection:    orderItemsCollection,
-		bookFormatsCollection:   bookFormatsCollection,
+		booksCollection:         booksCollection,
 		digitalAccessCollection: digitalAccessCollection,
 	}
 }
 
-// CreateOrder creates a new order
-// POST /orders
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -54,25 +50,43 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Calculate total and prepare order items
 	var totalAmount float64
 	var orderItems []models.OrderItem
-	var digitalFormats []models.OrderItem // Separate handling for digital/audio books
+	var digitalFormats []models.OrderItem
 
 	for _, item := range req.Items {
-		// Get format details
-		var format models.BookFormat
-		err := h.bookFormatsCollection.FindOne(ctx, bson.M{"_id": item.FormatID}).Decode(&format)
+		bookID, err := primitive.ObjectIDFromHex(item.BookID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+			return
+		}
+
+		var book models.Book
+		err = h.booksCollection.FindOne(ctx, bson.M{"_id": bookID}).Decode(&book)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Format not found: " + item.FormatID.Hex()})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Book not found"})
 			} else {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 			}
 			return
 		}
 
-		// Check stock
+		var format models.BookFormat
+		found := false
+		for _, f := range book.Formats {
+			if f.Type == item.FormatType {
+				format = f
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format not available for this book"})
+			return
+		}
+
 		if format.StockQuantity < item.Quantity {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient stock for format: " + format.Type})
 			return
@@ -82,24 +96,24 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		totalAmount += itemTotal
 
 		orderItem := models.OrderItem{
-			FormatID:        item.FormatID,
-			Quantity:        item.Quantity,
-			PriceAtPurchase: format.Price,
-			CreatedAt:       time.Now(),
+			BookID:     bookID,
+			FormatType: item.FormatType,
+			Quantity:   item.Quantity,
+			Price:      format.Price,
+			CreatedAt:  time.Now(),
 		}
 		orderItems = append(orderItems, orderItem)
 
-		if format.Type == "Digital" || format.Type == "Audio" {
+		if item.FormatType == "digital" || item.FormatType == "both" {
 			digitalFormats = append(digitalFormats, orderItem)
 		}
 	}
 
-	// Create order
 	order := models.Order{
 		UserID:      userID,
-		OrderDate:   time.Now(),
 		Status:      "Pending",
 		TotalAmount: totalAmount,
+		ItemCount:   len(orderItems),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -112,7 +126,6 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	orderID := orderResult.InsertedID.(primitive.ObjectID)
 
-	// Insert order items
 	for i := range orderItems {
 		orderItems[i].OrderID = orderID
 	}
@@ -128,23 +141,21 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	// Create digital access records for digital/audio books
 	for _, digitalItem := range digitalFormats {
-		accessURL := "https://library.bookstore.com/access/" + orderID.Hex() + "/" + digitalItem.FormatID.Hex()
+		accessURL := "https://library.bookstore.com/access/" + orderID.Hex()
 
 		digitalAccess := models.DigitalAccess{
 			UserID:            userID,
-			FormatID:          digitalItem.FormatID,
+			BookID:            digitalItem.BookID,
+			FormatType:        digitalItem.FormatType,
 			AccessGrantedDate: time.Now(),
-			// Set expiry date to 1 year from now for digital books
-			ExpiryDate: &[]time.Time{time.Now().AddDate(1, 0, 0)}[0],
-			AccessURL:  accessURL,
-			CreatedAt:  time.Now(),
+			ExpiryDate:        &[]time.Time{time.Now().AddDate(1, 0, 0)}[0],
+			AccessURL:         accessURL,
+			CreatedAt:         time.Now(),
 		}
 
 		_, err := h.digitalAccessCollection.InsertOne(ctx, digitalAccess)
 		if err != nil {
-			// Log error but don't fail the order
 			continue
 		}
 	}
@@ -156,8 +167,6 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	})
 }
 
-// GetUserOrders returns all orders for the current user
-// GET /orders
 func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -183,7 +192,6 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 			continue
 		}
 
-		// Get order items
 		itemCursor, err := h.orderItemsCollection.Find(ctx, bson.M{"order_id": order.ID})
 		if err != nil {
 			continue
@@ -203,7 +211,6 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 		orders = append(orders, models.OrderResponse{
 			ID:          order.ID,
 			UserID:      order.UserID,
-			OrderDate:   order.OrderDate,
 			Status:      order.Status,
 			TotalAmount: order.TotalAmount,
 			Items:       items,
@@ -219,8 +226,6 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	c.JSON(http.StatusOK, orders)
 }
 
-// GetAllOrders returns all orders (Admin only)
-// GET /admin/orders
 func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -240,7 +245,6 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 			continue
 		}
 
-		// Get order items
 		itemCursor, err := h.orderItemsCollection.Find(ctx, bson.M{"order_id": order.ID})
 		if err != nil {
 			continue
@@ -260,7 +264,6 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 		orders = append(orders, models.OrderResponse{
 			ID:          order.ID,
 			UserID:      order.UserID,
-			OrderDate:   order.OrderDate,
 			Status:      order.Status,
 			TotalAmount: order.TotalAmount,
 			Items:       items,
@@ -276,8 +279,6 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 	c.JSON(http.StatusOK, orders)
 }
 
-// UpdateOrderStatus updates order status (Admin only)
-// PUT /admin/orders/:id
 func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 	orderID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -316,8 +317,6 @@ func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Order status updated successfully"})
 }
 
-// CancelOrder cancels an order (Customer can cancel their own)
-// DELETE /orders/:id
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -334,7 +333,6 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Check order belongs to user
 	var order models.Order
 	err = h.ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&order)
 	if err != nil {
@@ -356,7 +354,6 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 		return
 	}
 
-	// Cancel order
 	result, err := h.ordersCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": orderID},

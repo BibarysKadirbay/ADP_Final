@@ -1,39 +1,54 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { userAPI, bookAPI, orderAPI } from '../api'
+import { adminAPI, bookAPI } from '../api.jsx'
 import { useAuth } from '../context/AuthContext'
+
+const defaultFormats = [{ type: 'physical', price: 0, stock_quantity: 0 }, { type: 'digital', price: 0, stock_quantity: 0 }]
 
 export default function AdminDashboard() {
     const navigate = useNavigate()
-    const { isAdmin } = useAuth()
+    const { user, isAdmin, isModerator } = useAuth()
     const [stats, setStats] = useState(null)
-    const [activeTab, setActiveTab] = useState('stats')
+    const [activeTab, setActiveTab] = useState(isAdmin ? 'stats' : 'books')
     const [books, setBooks] = useState([])
     const [orders, setOrders] = useState([])
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
+    const [showBookForm, setShowBookForm] = useState(false)
+    const [editingBook, setEditingBook] = useState(null)
+    const [bookForm, setBookForm] = useState({
+        title: '',
+        author: '',
+        description: '',
+        image_url: '',
+        published_year: '',
+        isbn: '',
+        category: '',
+        formats: defaultFormats.map(f => ({ ...f })),
+    })
 
     useEffect(() => {
-        if (!isAdmin) {
-            navigate('/books')
-            return
-        }
         fetchData()
-    }, [isAdmin, navigate])
+    }, [])
 
     const fetchData = async () => {
         try {
             setLoading(true)
-            const [statsRes, booksRes, ordersRes, usersRes] = await Promise.all([
-                userAPI.getStats(),
-                bookAPI.getBooks(),
-                orderAPI.getAllOrders(),
-                userAPI.getUsers()
-            ])
-            setStats(statsRes.data)
-            setBooks(booksRes.data || [])
-            setOrders(ordersRes.data || [])
-            setUsers(usersRes.data || [])
+            const promises = [bookAPI.getBooks().then(r => r.data || [])]
+            if (isAdmin) {
+                promises.push(
+                    adminAPI.getStats().then(r => r.data),
+                    adminAPI.getAllOrders().then(r => r.data || []),
+                    adminAPI.getAllUsers().then(r => r.data || []),
+                )
+            }
+            const results = await Promise.all(promises)
+            setBooks(results[0])
+            if (isAdmin) {
+                setStats(results[1])
+                setOrders(results[2])
+                setUsers(results[3])
+            }
         } catch (err) {
             alert('Failed to fetch admin data')
         } finally {
@@ -42,10 +57,10 @@ export default function AdminDashboard() {
     }
 
     const handleDeleteBook = async (bookId) => {
-        if (!window.confirm('Are you sure?')) return
+        if (!window.confirm('Delete this book?')) return
         try {
             await bookAPI.deleteBook(bookId)
-            setBooks(books.filter(b => b._id !== bookId))
+            setBooks(books.filter(b => (b.id || b._id) !== bookId))
         } catch (err) {
             alert('Failed to delete book')
         }
@@ -53,31 +68,115 @@ export default function AdminDashboard() {
 
     const handleUpdateOrderStatus = async (orderId, newStatus) => {
         try {
-            await orderAPI.updateOrderStatus(orderId, newStatus)
-            setOrders(orders.map(o =>
-                o.id === orderId ? { ...o, status: newStatus } : o
-            ))
+            await adminAPI.updateOrderStatus(orderId, newStatus)
+            setOrders(orders.map(o => (o.id || o._id) === orderId ? { ...o, status: newStatus } : o))
         } catch (err) {
             alert('Failed to update order')
         }
     }
 
-    const handleDeleteUser = async (userId) => {
-        if (!window.confirm('Are you sure?')) return
+    const handleDeactivateUser = async (userId) => {
+        if (!window.confirm('Deactivate this user?')) return
         try {
-            await userAPI.deleteUser(userId)
-            setUsers(users.filter(u => u._id !== userId))
+            await adminAPI.deactivateUser(userId)
+            setUsers(users.map(u => (u._id || u.id) === userId ? { ...u, is_active: false } : u))
         } catch (err) {
-            alert('Failed to delete user')
+            alert('Failed to deactivate user')
         }
     }
+
+    const handleUpgradePremium = async (userId, days) => {
+        const d = parseInt(prompt('Premium days:', 30), 10)
+        if (!d || d < 1) return
+        try {
+            await adminAPI.upgradeToPremium(userId, { days: d })
+            fetchData()
+        } catch (err) {
+            alert('Failed to upgrade user')
+        }
+    }
+
+    const handleUpdateRole = async (userId, role) => {
+        try {
+            await adminAPI.updateUserRole(userId, role)
+            setUsers(users.map(u => (u._id || u.id) === userId ? { ...u, role } : u))
+        } catch (err) {
+            alert('Failed to update role')
+        }
+    }
+
+    const openAddBook = () => {
+        setEditingBook(null)
+        setBookForm({
+            title: '',
+            author: '',
+            description: '',
+            image_url: '',
+            published_year: '',
+            isbn: '',
+            category: '',
+            formats: defaultFormats.map(f => ({ ...f })),
+        })
+        setShowBookForm(true)
+    }
+
+    const openEditBook = (book) => {
+        setEditingBook(book.id || book._id)
+        setBookForm({
+            title: book.title || '',
+            author: book.author || '',
+            description: book.description || '',
+            image_url: book.image_url || '',
+            published_year: book.published_year || '',
+            isbn: book.isbn || '',
+            category: book.category || '',
+            formats: (book.formats && book.formats.length) ? book.formats.map(f => ({ type: f.type, price: f.price || 0, stock_quantity: f.stock_quantity || 0 })) : defaultFormats.map(f => ({ ...f })),
+        })
+        setShowBookForm(true)
+    }
+
+    const handleBookFormSubmit = async (e) => {
+        e.preventDefault()
+        const payload = {
+            title: bookForm.title,
+            author: bookForm.author,
+            description: bookForm.description,
+            image_url: bookForm.image_url || undefined,
+            published_year: parseInt(bookForm.published_year, 10) || 0,
+            isbn: bookForm.isbn || undefined,
+            category: bookForm.category || undefined,
+            formats: bookForm.formats.filter(f => f.type).map(f => ({
+                type: f.type,
+                price: parseFloat(f.price) || 0,
+                stock_quantity: parseInt(f.stock_quantity, 10) || 0,
+            })),
+        }
+        if (payload.formats.length === 0) {
+            alert('Add at least one format (physical, digital, or both)')
+            return
+        }
+        try {
+            if (editingBook) {
+                await bookAPI.updateBook(editingBook, payload)
+                setBooks(books.map(b => (b.id || b._id) === editingBook ? { ...b, ...payload } : b))
+            } else {
+                const res = await bookAPI.createBook(payload)
+                const newBook = { id: res.data.id, ...payload }
+                setBooks([...books, newBook])
+            }
+            setShowBookForm(false)
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to save book')
+        }
+    }
+
+    const orderId = (o) => o.id || o._id
+    const userId = (u) => u._id || u.id
 
     if (loading) {
         return (
             <div className="page">
-                <div className="loading">
-                    <div className="spinner"></div>
-                </div>
+                <div className="loading"><div className="spinner"></div></div>
             </div>
         )
     }
@@ -85,64 +184,104 @@ export default function AdminDashboard() {
     return (
         <div className="page">
             <div className="container">
-                <h1 className="page-title">Admin Dashboard</h1>
-
-                <div style={{ marginBottom: '2rem', borderBottom: '1px solid #ddd' }}>
-                    <button
-                        className={`btn btn-${activeTab === 'stats' ? 'primary' : 'secondary'} btn-small`}
-                        onClick={() => setActiveTab('stats')}
-                        style={{ marginRight: '0.5rem' }}
-                    >
-                        Statistics
-                    </button>
-                    <button
-                        className={`btn btn-${activeTab === 'books' ? 'primary' : 'secondary'} btn-small`}
-                        onClick={() => setActiveTab('books')}
-                        style={{ marginRight: '0.5rem' }}
-                    >
-                        Books
-                    </button>
-                    <button
-                        className={`btn btn-${activeTab === 'orders' ? 'primary' : 'secondary'} btn-small`}
-                        onClick={() => setActiveTab('orders')}
-                        style={{ marginRight: '0.5rem' }}
-                    >
-                        Orders
-                    </button>
-                    <button
-                        className={`btn btn-${activeTab === 'users' ? 'primary' : 'secondary'} btn-small`}
-                        onClick={() => setActiveTab('users')}
-                    >
-                        Users
-                    </button>
+                <h1 className="page-title">Dashboard</h1>
+                <div className="admin-tabs">
+                    {isAdmin && (
+                        <>
+                            <button className={`btn btn-small ${activeTab === 'stats' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('stats')}>Statistics</button>
+                            <button className={`btn btn-small ${activeTab === 'orders' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('orders')}>Orders</button>
+                            <button className={`btn btn-small ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('users')}>Users</button>
+                        </>
+                    )}
+                    <button className={`btn btn-small ${activeTab === 'books' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('books')}>Books</button>
                 </div>
 
-                {/* Statistics Tab */}
                 {activeTab === 'stats' && stats && (
-                    <div className="grid grid-3">
-                        <div className="card" style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#666' }}>Total Users</p>
-                            <h2 style={{ fontSize: '2rem', color: '#3498db' }}>{stats.total_users}</h2>
-                        </div>
-                        <div className="card" style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#666' }}>Customers</p>
-                            <h2 style={{ fontSize: '2rem', color: '#27ae60' }}>{stats.customers}</h2>
-                        </div>
-                        <div className="card" style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#666' }}>Admins</p>
-                            <h2 style={{ fontSize: '2rem', color: '#e74c3c' }}>{stats.admins}</h2>
-                        </div>
+                    <div className="admin-stats-grid">
+                        <div className="card stat-card"><p>Total Users</p><h2>{stats.total_users}</h2></div>
+                        <div className="card stat-card"><p>Total Books</p><h2>{stats.total_books}</h2></div>
+                        <div className="card stat-card"><p>Total Orders</p><h2>{stats.total_orders}</h2></div>
+                        <div className="card stat-card"><p>Premium Users</p><h2>{stats.premium_users}</h2></div>
+                        <div className="card stat-card"><p>Total Revenue</p><h2>${(stats.total_revenue || 0).toFixed(2)}</h2></div>
+                        <div className="card stat-card"><p>Admins</p><h2>{stats.admins}</h2></div>
+                        <div className="card stat-card"><p>Moderators</p><h2>{stats.moderators}</h2></div>
+                        <div className="card stat-card"><p>Pending Orders</p><h2>{stats.pending_orders}</h2></div>
+                        <div className="card stat-card"><p>Completed</p><h2>{stats.completed_orders}</h2></div>
                     </div>
                 )}
 
-                {/* Books Tab */}
                 {activeTab === 'books' && (
                     <div>
-                        <button className="btn btn-success" onClick={() => navigate('/admin/books/new')} style={{ marginBottom: '1rem' }}>
-                            Add New Book
-                        </button>
+                        {(isModerator || isAdmin) && (
+                            <button className="btn btn-success" onClick={openAddBook} style={{ marginBottom: '1rem' }}>Add Book</button>
+                        )}
+                        {showBookForm && (
+                            <form className="card admin-book-form" onSubmit={handleBookFormSubmit}>
+                                <h3>{editingBook ? 'Edit Book' : 'New Book'}</h3>
+                                <div className="form-group">
+                                    <label>Title</label>
+                                    <input value={bookForm.title} onChange={e => setBookForm({ ...bookForm, title: e.target.value })} required />
+                                </div>
+                                <div className="form-group">
+                                    <label>Author</label>
+                                    <input value={bookForm.author} onChange={e => setBookForm({ ...bookForm, author: e.target.value })} required />
+                                </div>
+                                <div className="form-group">
+                                    <label>Description</label>
+                                    <textarea value={bookForm.description} onChange={e => setBookForm({ ...bookForm, description: e.target.value })} rows={3} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Image URL</label>
+                                    <input value={bookForm.image_url} onChange={e => setBookForm({ ...bookForm, image_url: e.target.value })} />
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Year</label>
+                                        <input type="number" value={bookForm.published_year} onChange={e => setBookForm({ ...bookForm, published_year: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>ISBN</label>
+                                        <input value={bookForm.isbn} onChange={e => setBookForm({ ...bookForm, isbn: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Category</label>
+                                        <input value={bookForm.category} onChange={e => setBookForm({ ...bookForm, category: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Formats (physical, digital, or both)</label>
+                                    {bookForm.formats.map((f, i) => (
+                                        <div key={i} className="format-inline">
+                                            <select value={f.type} onChange={e => {
+                                                const formats = [...bookForm.formats]
+                                                formats[i] = { ...formats[i], type: e.target.value }
+                                                setBookForm({ ...bookForm, formats })
+                                            }}>
+                                                <option value="physical">Physical</option>
+                                                <option value="digital">Digital</option>
+                                                <option value="both">Both</option>
+                                            </select>
+                                            <input type="number" step="0.01" placeholder="Price" value={f.price || ''} onChange={e => {
+                                                const formats = [...bookForm.formats]
+                                                formats[i] = { ...formats[i], price: e.target.value }
+                                                setBookForm({ ...bookForm, formats })
+                                            }} />
+                                            <input type="number" min="0" placeholder="Stock" value={f.stock_quantity || ''} onChange={e => {
+                                                const formats = [...bookForm.formats]
+                                                formats[i] = { ...formats[i], stock_quantity: e.target.value }
+                                                setBookForm({ ...bookForm, formats })
+                                            }} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="form-actions">
+                                    <button type="button" className="btn btn-secondary" onClick={() => setShowBookForm(false)}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary">{editingBook ? 'Update' : 'Create'}</button>
+                                </div>
+                            </form>
+                        )}
                         {books.length === 0 ? (
-                            <div className="alert alert-info">No books yet</div>
+                            <div className="alert alert-info">No books</div>
                         ) : (
                             <div style={{ overflowX: 'auto' }}>
                                 <table>
@@ -150,24 +289,24 @@ export default function AdminDashboard() {
                                         <tr>
                                             <th>Title</th>
                                             <th>Author</th>
+                                            <th>Year</th>
                                             <th>Formats</th>
-                                            <th>Action</th>
+                                            {(isModerator || isAdmin) && <th>Actions</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {books.map((book) => (
-                                            <tr key={book._id}>
+                                            <tr key={book.id || book._id}>
                                                 <td>{book.title}</td>
                                                 <td>{book.author}</td>
-                                                <td>{book.formats?.length || 0}</td>
-                                                <td>
-                                                    <button
-                                                        className="btn btn-danger btn-small"
-                                                        onClick={() => handleDeleteBook(book._id)}
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </td>
+                                                <td>{book.published_year || '-'}</td>
+                                                <td>{(book.formats || []).map(f => f.type).join(', ')}</td>
+                                                {(isModerator || isAdmin) && (
+                                                    <td>
+                                                        <button className="btn btn-primary btn-small" onClick={() => openEditBook(book)} style={{ marginRight: '0.5rem' }}>Edit</button>
+                                                        <button className="btn btn-danger btn-small" onClick={() => handleDeleteBook(book.id || book._id)}>Delete</button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -177,8 +316,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* Orders Tab */}
-                {activeTab === 'orders' && (
+                {activeTab === 'orders' && isAdmin && (
                     <div style={{ overflowX: 'auto' }}>
                         {orders.length === 0 ? (
                             <div className="alert alert-info">No orders</div>
@@ -190,31 +328,25 @@ export default function AdminDashboard() {
                                         <th>User ID</th>
                                         <th>Total</th>
                                         <th>Status</th>
+                                        <th>Date</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {orders.map((order) => (
-                                        <tr key={order.id}>
-                                            <td>{order.id.substring(0, 8)}...</td>
-                                            <td>{order.user_id.substring(0, 8)}...</td>
-                                            <td>${order.total_amount.toFixed(2)}</td>
+                                        <tr key={orderId(order)}>
+                                            <td>{(orderId(order)).toString().slice(0, 8)}...</td>
+                                            <td>{(order.user_id || order.userId || '').toString().slice(0, 8)}...</td>
+                                            <td>${(order.total_amount || 0).toFixed(2)}</td>
                                             <td>
-                                                <select
-                                                    value={order.status}
-                                                    onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                                                    style={{ padding: '0.5rem' }}
-                                                >
+                                                <select value={order.status} onChange={e => handleUpdateOrderStatus(orderId(order), e.target.value)} style={{ padding: '0.5rem' }}>
                                                     <option value="Pending">Pending</option>
                                                     <option value="Completed">Completed</option>
                                                     <option value="Cancelled">Cancelled</option>
                                                 </select>
                                             </td>
-                                            <td>
-                                                <span style={{ fontSize: '0.85rem', color: '#666' }}>
-                                                    {new Date(order.order_date).toLocaleDateString()}
-                                                </span>
-                                            </td>
+                                            <td>{order.created_at ? new Date(order.created_at).toLocaleDateString() : '-'}</td>
+                                            <td></td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -223,8 +355,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* Users Tab */}
-                {activeTab === 'users' && (
+                {activeTab === 'users' && isAdmin && (
                     <div style={{ overflowX: 'auto' }}>
                         {users.length === 0 ? (
                             <div className="alert alert-info">No users</div>
@@ -235,22 +366,26 @@ export default function AdminDashboard() {
                                         <th>Username</th>
                                         <th>Email</th>
                                         <th>Role</th>
-                                        <th>Action</th>
+                                        <th>Premium</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {users.map((user) => (
-                                        <tr key={user._id}>
-                                            <td>{user.username}</td>
-                                            <td>{user.email}</td>
-                                            <td>{user.role}</td>
+                                    {users.map((u) => (
+                                        <tr key={userId(u)}>
+                                            <td>{u.username}</td>
+                                            <td>{u.email}</td>
                                             <td>
-                                                <button
-                                                    className="btn btn-danger btn-small"
-                                                    onClick={() => handleDeleteUser(user._id)}
-                                                >
-                                                    Delete
-                                                </button>
+                                                <select value={u.role || 'customer'} onChange={e => handleUpdateRole(userId(u), e.target.value)} style={{ padding: '0.25rem' }}>
+                                                    <option value="customer">customer</option>
+                                                    <option value="Moderator">Moderator</option>
+                                                    <option value="Admin">Admin</option>
+                                                </select>
+                                            </td>
+                                            <td>{u.is_premium ? 'Yes' : 'No'}</td>
+                                            <td>
+                                                <button className="btn btn-success btn-small" onClick={() => handleUpgradePremium(userId(u))} style={{ marginRight: '0.5rem' }}>Premium</button>
+                                                <button className="btn btn-danger btn-small" onClick={() => handleDeactivateUser(userId(u))}>Deactivate</button>
                                             </td>
                                         </tr>
                                     ))}

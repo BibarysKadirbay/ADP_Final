@@ -1,12 +1,12 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
 	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
-// Config holds the application configuration
 type Config struct {
 	MongoURI    string
 	MongoDBName string
@@ -14,9 +14,7 @@ type Config struct {
 	Port        string
 }
 
-// LoadConfig loads configuration from environment variables
 func LoadConfig() *Config {
-	// Load .env file if it exists
 	_ = godotenv.Load()
 
 	config := &Config{
@@ -29,7 +27,6 @@ func LoadConfig() *Config {
 	return config
 }
 
-// getEnv retrieves an environment variable with a default value
 func getEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {

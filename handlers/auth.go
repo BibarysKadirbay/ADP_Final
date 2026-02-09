@@ -14,13 +14,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthHandler handles authentication operations
 type AuthHandler struct {
 	usersCollection *mongo.Collection
 	jwtSecret       string
 }
 
-// NewAuthHandler creates a new auth handler
 func NewAuthHandler(usersCollection *mongo.Collection, jwtSecret string) *AuthHandler {
 	return &AuthHandler{
 		usersCollection: usersCollection,
@@ -28,8 +26,6 @@ func NewAuthHandler(usersCollection *mongo.Collection, jwtSecret string) *AuthHa
 	}
 }
 
-// Register handles user registration
-// POST /auth/register
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 
@@ -41,7 +37,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Check if user already exists
 	existingUser := h.usersCollection.FindOne(ctx, bson.M{"$or": []bson.M{
 		{"email": req.Email},
 		{"username": req.Username},
@@ -52,21 +47,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
 
-	// Create new user
 	newUser := models.User{
-		Username:  req.Username,
-		Email:     req.Email,
-		Password:  string(hashedPassword),
-		Role:      "Customer", // Default role
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		Username:     req.Username,
+		Email:        req.Email,
+		Password:     string(hashedPassword),
+		Role:         "customer",
+		IsPremium:    false,
+		PremiumUntil: time.Now(),
+		IsActive:     true,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	result, err := h.usersCollection.InsertOne(ctx, newUser)
@@ -81,8 +77,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// Login handles user login
-// POST /auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 
@@ -94,7 +88,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Find user by email
 	var user models.User
 	err := h.usersCollection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
@@ -106,13 +99,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
 
-	// Generate JWT token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, middleware.Claims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -130,18 +121,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	response := models.LoginResponse{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		Role:     user.Role,
-		Token:    tokenString,
+		ID:           user.ID,
+		Username:     user.Username,
+		Email:        user.Email,
+		Role:         user.Role,
+		Token:        tokenString,
+		IsPremium:    user.IsPremium,
+		PremiumUntil: user.PremiumUntil,
 	}
 
 	c.JSON(http.StatusOK, response)
 }
 
-// GetProfile returns the current user's profile
-// GET /auth/profile
 func (h *AuthHandler) GetProfile(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -164,9 +155,11 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":       user.ID,
-		"username": user.Username,
-		"email":    user.Email,
-		"role":     user.Role,
+		"id":            user.ID,
+		"username":     user.Username,
+		"email":        user.Email,
+		"role":         user.Role,
+		"is_premium":   user.IsPremium,
+		"premium_until": user.PremiumUntil,
 	})
 }
