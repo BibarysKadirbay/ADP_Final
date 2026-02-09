@@ -1,61 +1,152 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { bookAPI } from '../api'
+import { useCart } from '../context/CartContext'
 
 export default function Home() {
     const navigate = useNavigate()
     const { user } = useAuth()
+    const { addToCart } = useCart()
+    const [searchInput, setSearchInput] = useState('')
+    const [featuredBooks, setFeaturedBooks] = useState([])
+    const [loadingBooks, setLoadingBooks] = useState(true)
+    const [error, setError] = useState('')
+
+    useEffect(() => {
+        fetchFeaturedBooks()
+    }, [])
+
+    const fetchFeaturedBooks = async () => {
+        try {
+            setLoadingBooks(true)
+            setError('')
+            const response = await bookAPI.getBooks('')
+            setFeaturedBooks(response.data ? response.data.slice(0, 3) : [])
+        } catch (err) {
+            setError('Failed to load featured books')
+            console.error(err)
+        } finally {
+            setLoadingBooks(false)
+        }
+    }
+
+    const handleSearch = () => {
+        if (searchInput.trim()) {
+            navigate(`/books?search=${encodeURIComponent(searchInput)}`)
+        } else {
+            navigate('/books')
+        }
+    }
+
+    const handleAddToCart = (format) => {
+        addToCart(format)
+        alert(`${format.type} format added to cart!`)
+    }
 
     return (
-        <div style={{ minHeight: 'calc(100vh - 120px)', backgroundColor: '#ecf0f1' }}>
-            <div
-                style={{
-                    background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
-                    color: 'white',
-                    padding: '4rem 2rem',
-                    textAlign: 'center'
-                }}
-            >
+        <div style={{ minHeight: 'calc(100vh - 120px)' }}>
+            {/* Hero Section */}
+            <section className="hero">
                 <div className="container">
-                    <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-                        📚 Welcome to Bookstore
-                    </h1>
-                    <p style={{ fontSize: '1.25rem', marginBottom: '2rem' }}>
-                        Discover your next favorite book across Physical, Digital, and Audio formats
-                    </p>
-                    {user ? (
-                        <button
-                            className="btn btn-success"
-                            onClick={() => navigate('/books')}
-                            style={{ fontSize: '1.1rem', padding: '1rem 2rem' }}
-                        >
-                            Browse Catalog
-                        </button>
-                    ) : (
-                        <div>
-                            <button
+                    <div>
+                        <h1 className="hero-title">📚 Welcome to Bookstore</h1>
+                        <p className="hero-subtitle">Discover your next favorite book across Physical, Digital, and Audio formats</p>
+                        <div className="hero-search" style={{ marginTop: '2rem', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                            <input 
+                                type="search" 
+                                placeholder="Find your favorite book here..." 
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                style={{ padding: '0.75rem 1rem', borderRadius: '4px', border: '1px solid #ddd', minWidth: '300px', fontSize: '1rem' }}
+                            />
+                            <button 
                                 className="btn btn-success"
-                                onClick={() => navigate('/login')}
-                                style={{ fontSize: '1.1rem', padding: '1rem 2rem', marginRight: '1rem' }}
+                                onClick={handleSearch}
                             >
-                                Login
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={() => navigate('/register')}
-                                style={{ fontSize: '1.1rem', padding: '1rem 2rem' }}
-                            >
-                                Register
+                                Search
                             </button>
                         </div>
-                    )}
+                    </div>
+
+                    <div>
+                        <div className="hero-image" aria-hidden="true">
+                            {/* Decorative image block — replace with illustration if available */}
+                        </div>
+                    </div>
                 </div>
+            </section>
+
+            {/* Featured Books Section */}
+            <div className="container" style={{ padding: '4rem 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <h2 className="page-title">Featured Books</h2>
+                    <button 
+                        className="btn btn-primary"
+                        onClick={() => navigate('/books')}
+                    >
+                        View All
+                    </button>
+                </div>
+
+                {error && <div className="alert alert-danger">{error}</div>}
+
+                {loadingBooks ? (
+                    <div className="loading">
+                        <div className="spinner"></div>
+                        <p>Loading featured books...</p>
+                    </div>
+                ) : featuredBooks.length === 0 ? (
+                    <div className="alert alert-info">No books available at the moment.</div>
+                ) : (
+                    <div className="grid grid-3">
+                        {featuredBooks.map((book) => (
+                            <div key={book.id} className="card">
+                                <Link to={`/books/${book.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <h3 className="card-title">{book.title}</h3>
+                                    <p className="card-subtitle">{book.author}</p>
+                                </Link>
+
+                                <p className="card-description">
+                                    {book.description ? book.description.substring(0, 100) + '...' : 'No description available'}
+                                </p>
+
+                                {book.formats && book.formats.length > 0 && (
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Available Formats:</p>
+                                        <div className="format-list">
+                                            {book.formats.map((format) => (
+                                                <div key={format.id} className="format-item">
+                                                    <div>
+                                                        <strong>{format.type}</strong>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                                        <div className="price">${format.price.toFixed(2)}</div>
+                                                        {format.stock_quantity > 0 && (
+                                                            <button className="btn btn-success btn-small" onClick={() => handleAddToCart(format)}>Add</button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="card-footer">
+                                    <Link to={`/books/${book.id}`} className="btn btn-primary btn-small">
+                                        View Details
+                                    </Link>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
+            {/* Why Choose Our Bookstore Section */}
             <div className="container" style={{ padding: '4rem 0' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: '#2c3e50' }}>
-                    Why Choose Our Bookstore?
-                </h2>
+                <h2 className="page-title" style={{ textAlign: 'center' }}>Why Choose Our Bookstore?</h2>
 
                 <div className="grid grid-3">
                     <div className="card">
@@ -73,35 +164,15 @@ export default function Home() {
                     </div>
 
                     <div className="card">
-                        <h3 className="card-title">📚 Personal Library</h3>
-                        <p className="card-description">
-                            Access your digital and audio books anytime, anywhere from your personal library.
-                        </p>
-                    </div>
-
-                    <div className="card">
                         <h3 className="card-title">💳 Secure Checkout</h3>
                         <p className="card-description">
                             Shop with confidence with our secure payment and order management system.
                         </p>
                     </div>
-
-                    <div className="card">
-                        <h3 className="card-title">⚡ Fast Delivery</h3>
-                        <p className="card-description">
-                            Instant access to digital books and audio content, shipped books delivered fast.
-                        </p>
-                    </div>
-
-                    <div className="card">
-                        <h3 className="card-title">👥 Community</h3>
-                        <p className="card-description">
-                            Join thousands of readers and manage your orders easily.
-                        </p>
-                    </div>
                 </div>
             </div>
 
+            {/* Admin Panel Section */}
             {user && user.role === 'Admin' && (
                 <div style={{ backgroundColor: '#fff3cd', padding: '2rem', marginTop: '2rem' }}>
                     <div className="container">

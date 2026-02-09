@@ -87,7 +87,7 @@ export default function AdminDashboard() {
             <div className="container">
                 <h1 className="page-title">Admin Dashboard</h1>
 
-                <div style={{ marginBottom: '2rem', borderBottom: '1px solid #ddd' }}>
+                <div style={{ marginBottom: '2rem', borderBottom: '1px solid rgba(41,28,14,0.1)' }}>
                     <button
                         className={`btn btn-${activeTab === 'stats' ? 'primary' : 'secondary'} btn-small`}
                         onClick={() => setActiveTab('stats')}
@@ -121,16 +121,16 @@ export default function AdminDashboard() {
                 {activeTab === 'stats' && stats && (
                     <div className="grid grid-3">
                         <div className="card" style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#666' }}>Total Users</p>
-                            <h2 style={{ fontSize: '2rem', color: '#3498db' }}>{stats.total_users}</h2>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>Total Users</p>
+                            <h2 style={{ fontSize: '2rem', color: 'var(--brown-700)', fontWeight: '700' }}>{stats.total_users}</h2>
                         </div>
                         <div className="card" style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#666' }}>Customers</p>
-                            <h2 style={{ fontSize: '2rem', color: '#27ae60' }}>{stats.customers}</h2>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>Customers</p>
+                            <h2 style={{ fontSize: '2rem', color: 'var(--brown-400)', fontWeight: '700' }}>{stats.customers}</h2>
                         </div>
                         <div className="card" style={{ textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#666' }}>Admins</p>
-                            <h2 style={{ fontSize: '2rem', color: '#e74c3c' }}>{stats.admins}</h2>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>Admins</p>
+                            <h2 style={{ fontSize: '2rem', color: '#c94a3f', fontWeight: '700' }}>{stats.admins}</h2>
                         </div>
                     </div>
                 )}

@@ -36,7 +36,7 @@ export default function Books() {
             <div className="container">
                 <h1 className="page-title">Bookstore Catalog</h1>
 
-                <div className="form-group" style={{ maxWidth: '400px', marginBottom: '2rem' }}>
+                <div className="form-group" style={{ maxWidth: '480px', marginBottom: '2rem' }}>
                     <input
                         type="text"
                         placeholder="Search books by title or author..."
@@ -70,33 +70,21 @@ export default function Books() {
                                 {book.formats && book.formats.length > 0 && (
                                     <div style={{ marginBottom: '1rem' }}>
                                         <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Available Formats:</p>
-                                        {book.formats.map((format) => (
-                                            <div
-                                                key={format.id}
-                                                style={{
-                                                    fontSize: '0.85rem',
-                                                    marginBottom: '0.5rem',
-                                                    padding: '0.5rem',
-                                                    backgroundColor: '#f0f0f0',
-                                                    borderRadius: '4px',
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center'
-                                                }}
-                                            >
-                                                <span>
-                                                    {format.type} - ${format.price.toFixed(2)}
-                                                </span>
-                                                {format.stock_quantity > 0 && (
-                                                    <button
-                                                        className="btn btn-success btn-small"
-                                                        onClick={() => handleAddToCart(format)}
-                                                    >
-                                                        Add
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
+                                        <div className="format-list">
+                                            {book.formats.map((format) => (
+                                                <div key={format.id} className="format-item">
+                                                    <div>
+                                                        <strong>{format.type}</strong>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                                        <div className="price">${format.price.toFixed(2)}</div>
+                                                        {format.stock_quantity > 0 && (
+                                                            <button className="btn btn-success btn-small" onClick={() => handleAddToCart(format)}>Add</button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
