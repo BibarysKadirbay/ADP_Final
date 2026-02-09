@@ -17,6 +17,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+
 export const authAPI = {
   register: (username, email, password) =>
     apiClient.post('/auth/register', { username, email, password }),
@@ -58,21 +59,35 @@ export const digitalAPI = {
 };
 
 export const adminAPI = {
-  getStats: () =>
-    apiClient.get('/admin/stats'),
-  getAllUsers: () =>
-    apiClient.get('/admin/users'),
-  deactivateUser: (id) =>
-    apiClient.put(`/admin/users/${id}/deactivate`),
-  upgradeToPremium: (id, data) =>
-    apiClient.put(`/admin/users/${id}/premium`, data),
-  updateUserRole: (id, role) =>
-    apiClient.put(`/admin/users/${id}/role`, { role }),
-  getAllOrders: () =>
-    apiClient.get('/admin/orders'),
-  updateOrderStatus: (id, status) =>
-    apiClient.put(`/admin/orders/${id}`, { status }),
+    getStats: () =>
+        apiClient.get('/admin/stats'),
+    getAllUsers: () =>
+        apiClient.get('/admin/users'),
+    deactivateUser: (id) =>
+        apiClient.put(`/admin/users/${id}/deactivate`),
+    upgradeToPremium: (id, data) =>
+        apiClient.put(`/admin/users/${id}/premium`, data),
+    getAllOrders: () =>
+        apiClient.get('/admin/orders'),
+    updateOrderStatus: (id, status) =>
+        apiClient.put(`/admin/orders/${id}`, { status }),
+    getAllBooks: () =>
+        apiClient.get('/books'),
 };
+
+export const userAPI = {
+    getStats: () =>
+        apiClient.get('/admin/stats'),
+    getUsers: () =>
+        apiClient.get('/admin/users'),
+    deactivateUser: (id) =>
+        apiClient.put(`/admin/users/${id}/deactivate`),
+    upgradeToPremium: (id, data) =>
+        apiClient.put(`/admin/users/${id}/premium`, data),
+    deleteUser: (id) =>
+        apiClient.put(`/admin/users/${id}/deactivate`),
+};
+
 
 
 export default apiClient;
