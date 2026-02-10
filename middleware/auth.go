@@ -11,9 +11,10 @@ import (
 )
 
 type Claims struct {
-	UserID primitive.ObjectID `json:"user_id"`
-	Email  string             `json:"email"`
-	Role   string             `json:"role"`
+	UserID    primitive.ObjectID `json:"user_id"`
+	Email     string             `json:"email"`
+	Role      string             `json:"role"`
+	IsPremium bool               `json:"is_premium"`
 	jwt.RegisteredClaims
 }
 
@@ -52,6 +53,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("email", claims.Email)
 		c.Set("role", claims.Role)
+		c.Set("is_premium", claims.IsPremium)
 		c.Next()
 	}
 }

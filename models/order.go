@@ -7,13 +7,15 @@ import (
 )
 
 type Order struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	UserID      primitive.ObjectID `bson:"user_id" json:"user_id"`
-	TotalAmount float64            `bson:"total_amount" json:"total_amount"`
-	Status      string             `bson:"status" json:"status"`
-	ItemCount   int                `bson:"item_count" json:"item_count"`
-	CreatedAt   time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt   time.Time          `bson:"updated_at" json:"updated_at"`
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID          primitive.ObjectID `bson:"user_id" json:"user_id"`
+	TotalAmount     float64            `bson:"total_amount" json:"total_amount"`
+	Status          string             `bson:"status" json:"status"`
+	ItemCount       int                `bson:"item_count" json:"item_count"`
+	DeliveryStatus  string             `bson:"delivery_status,omitempty" json:"delivery_status,omitempty"`
+	DeliveryAddress string             `bson:"delivery_address,omitempty" json:"delivery_address,omitempty"`
+	CreatedAt       time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt       time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
 type OrderItem struct {
@@ -32,6 +34,7 @@ type CreateOrderRequest struct {
 		FormatType string `json:"format_type" binding:"required,oneof=physical digital both"`
 		Quantity   int    `json:"quantity" binding:"required,gt=0"`
 	} `json:"items" binding:"required"`
+	DeliveryAddress string `json:"delivery_address"`
 }
 
 type OrderItemInput struct {
@@ -40,13 +43,15 @@ type OrderItemInput struct {
 }
 
 type OrderResponse struct {
-	ID          primitive.ObjectID  `json:"id"`
-	UserID      primitive.ObjectID  `json:"user_id"`
-	Status      string              `json:"status"`
-	TotalAmount float64             `json:"total_amount"`
-	Items       []OrderItemResponse `json:"items"`
-	CreatedAt   time.Time           `json:"created_at"`
-	UpdatedAt   time.Time           `json:"updated_at"`
+	ID              primitive.ObjectID  `json:"id"`
+	UserID          primitive.ObjectID  `json:"user_id"`
+	Status          string              `json:"status"`
+	TotalAmount     float64             `json:"total_amount"`
+	Items           []OrderItemResponse `json:"items"`
+	DeliveryStatus  string              `json:"delivery_status,omitempty"`
+	DeliveryAddress string              `json:"delivery_address,omitempty"`
+	CreatedAt       time.Time           `json:"created_at"`
+	UpdatedAt       time.Time           `json:"updated_at"`
 }
 
 type OrderItemResponse struct {

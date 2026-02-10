@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { adminAPI, bookAPI } from '../api.jsx'
 import { useAuth } from '../context/AuthContext'
 
-const defaultFormats = [{ type: 'physical', price: 0, stock_quantity: 0 }, { type: 'digital', price: 0, stock_quantity: 0 }]
+const defaultFormats = [{ type: 'physical', price: 0, stock_quantity: 0, access_url: '' }, { type: 'digital', price: 0, stock_quantity: 0, access_url: '' }]
 
 export default function AdminDashboard() {
     const navigate = useNavigate()
@@ -105,6 +105,18 @@ export default function AdminDashboard() {
         }
     }
 
+    const handleUpdateDeliveryStatus = async (orderId, status) => {
+        const address = prompt('Enter delivery address:', '')
+        if (!address) return
+        try {
+            await adminAPI.updateDeliveryStatus(orderId, status, address)
+            setOrders(orders.map(o => (o.id || o._id) === orderId ? { ...o, delivery_status: status, delivery_address: address } : o))
+            alert('Delivery status updated')
+        } catch (err) {
+            alert('Failed to update delivery status')
+        }
+    }
+
     const openAddBook = () => {
         setEditingBook(null)
         setBookForm({
@@ -130,7 +142,7 @@ export default function AdminDashboard() {
             published_year: book.published_year || '',
             isbn: book.isbn || '',
             category: book.category || '',
-            formats: (book.formats && book.formats.length) ? book.formats.map(f => ({ type: f.type, price: f.price || 0, stock_quantity: f.stock_quantity || 0 })) : defaultFormats.map(f => ({ ...f })),
+            formats: (book.formats && book.formats.length) ? book.formats.map(f => ({ type: f.type, price: f.price || 0, stock_quantity: f.stock_quantity || 0, access_url: f.access_url || '' })) : defaultFormats.map(f => ({ ...f })),
         })
         setShowBookForm(true)
     }
@@ -149,6 +161,7 @@ export default function AdminDashboard() {
                 type: f.type,
                 price: parseFloat(f.price) || 0,
                 stock_quantity: parseInt(f.stock_quantity, 10) || 0,
+                access_url: f.access_url || undefined,
             })),
         }
         if (payload.formats.length === 0) {
@@ -195,6 +208,12 @@ export default function AdminDashboard() {
                     )}
                     <button className={`btn btn-small ${activeTab === 'books' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('books')}>Books</button>
                 </div>
+
+                {isModerator && !isAdmin && (
+                    <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+                        📚 Moderator Dashboard - You can manage books and view store statistics.
+                    </div>
+                )}
 
                 {activeTab === 'stats' && stats && (
                     <div className="admin-stats-grid">
@@ -251,26 +270,46 @@ export default function AdminDashboard() {
                                 <div className="form-group">
                                     <label>Formats (physical, digital, or both)</label>
                                     {bookForm.formats.map((f, i) => (
-                                        <div key={i} className="format-inline">
-                                            <select value={f.type} onChange={e => {
-                                                const formats = [...bookForm.formats]
-                                                formats[i] = { ...formats[i], type: e.target.value }
-                                                setBookForm({ ...bookForm, formats })
-                                            }}>
-                                                <option value="physical">Physical</option>
-                                                <option value="digital">Digital</option>
-                                                <option value="both">Both</option>
-                                            </select>
-                                            <input type="number" step="0.01" placeholder="Price" value={f.price || ''} onChange={e => {
-                                                const formats = [...bookForm.formats]
-                                                formats[i] = { ...formats[i], price: e.target.value }
-                                                setBookForm({ ...bookForm, formats })
-                                            }} />
-                                            <input type="number" min="0" placeholder="Stock" value={f.stock_quantity || ''} onChange={e => {
-                                                const formats = [...bookForm.formats]
-                                                formats[i] = { ...formats[i], stock_quantity: e.target.value }
-                                                setBookForm({ ...bookForm, formats })
-                                            }} />
+                                        <div key={i} style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center' }}>
+                                                <select value={f.type} onChange={e => {
+                                                    const formats = [...bookForm.formats]
+                                                    formats[i] = { ...formats[i], type: e.target.value }
+                                                    setBookForm({ ...bookForm, formats })
+                                                }} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ced4da' }}>
+                                                    <option value="physical">Physical</option>
+                                                    <option value="digital">Digital</option>
+                                                    <option value="both">Both</option>
+                                                </select>
+                                                <input type="number" step="0.01" placeholder="Price" value={f.price || ''} onChange={e => {
+                                                    const formats = [...bookForm.formats]
+                                                    formats[i] = { ...formats[i], price: e.target.value }
+                                                    setBookForm({ ...bookForm, formats })
+                                                }} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ced4da' }} />
+                                                <input type="number" min="0" placeholder="Stock" value={f.stock_quantity || ''} onChange={e => {
+                                                    const formats = [...bookForm.formats]
+                                                    formats[i] = { ...formats[i], stock_quantity: e.target.value }
+                                                    setBookForm({ ...bookForm, formats })
+                                                }} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ced4da' }} />
+                                            </div>
+                                            {(f.type === 'digital' || f.type === 'both') && (
+                                                <div style={{ marginTop: '0.5rem' }}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Access URL (PDF link, website, etc.)"
+                                                        value={f.access_url || ''}
+                                                        onChange={e => {
+                                                            const formats = [...bookForm.formats]
+                                                            formats[i] = { ...formats[i], access_url: e.target.value }
+                                                            setBookForm({ ...bookForm, formats })
+                                                        }}
+                                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ced4da', boxSizing: 'border-box' }}
+                                                    />
+                                                    <small style={{ display: 'block', color: '#666', marginTop: '0.25rem' }}>
+                                                        Provide the link to the PDF or digital access page that users will open
+                                                    </small>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -328,8 +367,8 @@ export default function AdminDashboard() {
                                         <th>User ID</th>
                                         <th>Total</th>
                                         <th>Status</th>
+                                        <th>Delivery Status</th>
                                         <th>Date</th>
-                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -345,8 +384,21 @@ export default function AdminDashboard() {
                                                     <option value="Cancelled">Cancelled</option>
                                                 </select>
                                             </td>
+                                            <td>
+                                                {order.delivery_status ? (
+                                                    <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                                        <select value={order.delivery_status} onChange={e => handleUpdateDeliveryStatus(orderId(order), e.target.value)} style={{ padding: '0.25rem', fontSize: '0.85rem', flex: 1 }}>
+                                                            <option value="pending">Pending</option>
+                                                            <option value="accepted">Accepted</option>
+                                                            <option value="in_transit">In Transit</option>
+                                                            <option value="delivered">Delivered</option>
+                                                        </select>
+                                                    </div>
+                                                ) : (
+                                                    <button className="btn btn-primary btn-small" onClick={() => handleUpdateDeliveryStatus(orderId(order), 'pending')} style={{ fontSize: '0.75rem' }}>Set Delivery</button>
+                                                )}
+                                            </td>
                                             <td>{order.created_at ? new Date(order.created_at).toLocaleDateString() : '-'}</td>
-                                            <td></td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -376,8 +428,8 @@ export default function AdminDashboard() {
                                             <td>{u.username}</td>
                                             <td>{u.email}</td>
                                             <td>
-                                                <select value={u.role || 'customer'} onChange={e => handleUpdateRole(userId(u), e.target.value)} style={{ padding: '0.25rem' }}>
-                                                    <option value="customer">customer</option>
+                                                <select value={u.role || 'Customer'} onChange={e => handleUpdateRole(userId(u), e.target.value)} style={{ padding: '0.25rem' }}>
+                                                    <option value="Customer">Customer</option>
                                                     <option value="Moderator">Moderator</option>
                                                     <option value="Admin">Admin</option>
                                                 </select>

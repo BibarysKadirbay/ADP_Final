@@ -10,6 +10,7 @@ type BookFormat struct {
 	Type          string  `bson:"type" json:"type"`
 	Price         float64 `bson:"price" json:"price"`
 	StockQuantity int     `bson:"stock_quantity" json:"stock_quantity"`
+	AccessURL     string  `bson:"access_url,omitempty" json:"access_url,omitempty"`
 }
 
 type Book struct {
@@ -43,6 +44,7 @@ type BookFormatInput struct {
 	Type          string  `json:"type" binding:"required,oneof=physical digital both"`
 	Price         float64 `json:"price" binding:"required,gt=0"`
 	StockQuantity int     `json:"stock_quantity" binding:"required,gte=0"`
+	AccessURL     string  `json:"access_url"`
 }
 
 type BookWithFormats struct {

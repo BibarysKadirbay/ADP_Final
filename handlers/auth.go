@@ -5,6 +5,7 @@ import (
 	"bookstore/models"
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	// server-side extra validation: no whitespace in password
+	if strings.ContainsAny(req.Password, " \t\n") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password must not contain whitespace"})
+		return
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
@@ -57,7 +64,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Username:     req.Username,
 		Email:        req.Email,
 		Password:     string(hashedPassword),
-		Role:         "customer",
+		Role:         "Customer",
 		IsPremium:    false,
 		PremiumUntil: time.Now(),
 		IsActive:     true,
@@ -104,10 +111,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	loyaltyLevel, _, _ := middleware.GetLoyaltyLevel(user.LoyaltyPoints)
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, middleware.Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
+		UserID:    user.ID,
+		Email:     user.Email,
+		Role:      user.Role,
+		IsPremium: user.IsPremium,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -121,13 +131,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	response := models.LoginResponse{
-		ID:           user.ID,
-		Username:     user.Username,
-		Email:        user.Email,
-		Role:         user.Role,
-		Token:        tokenString,
-		IsPremium:    user.IsPremium,
-		PremiumUntil: user.PremiumUntil,
+		ID:            user.ID,
+		Username:      user.Username,
+		Email:         user.Email,
+		Role:          user.Role,
+		Token:         tokenString,
+		IsPremium:     user.IsPremium,
+		PremiumUntil:  user.PremiumUntil,
+		LoyaltyLevel:  loyaltyLevel,
+		LoyaltyPoints: user.LoyaltyPoints,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -154,12 +166,84 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
+	// compute loyalty level from points
+	loyaltyLevel, loyaltyDiscount, _ := middleware.GetLoyaltyLevel(user.LoyaltyPoints)
+
 	c.JSON(http.StatusOK, gin.H{
-		"id":            user.ID,
-		"username":     user.Username,
-		"email":        user.Email,
-		"role":         user.Role,
-		"is_premium":   user.IsPremium,
-		"premium_until": user.PremiumUntil,
+		"id":               user.ID,
+		"username":         user.Username,
+		"email":            user.Email,
+		"role":             user.Role,
+		"is_premium":       user.IsPremium,
+		"premium_until":    user.PremiumUntil,
+		"loyalty_points":   user.LoyaltyPoints,
+		"loyalty_level":    loyaltyLevel,
+		"loyalty_discount": loyaltyDiscount,
 	})
+}
+
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user context"})
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// check if new username/email already exist in another user
+	if req.Username != "" {
+		count, _ := h.usersCollection.CountDocuments(ctx, bson.M{
+			"username": req.Username,
+			"_id":      bson.M{"$ne": userID},
+		})
+		if count > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "Username already taken"})
+			return
+		}
+	}
+
+	if req.Email != "" {
+		count, _ := h.usersCollection.CountDocuments(ctx, bson.M{
+			"email": req.Email,
+			"_id":   bson.M{"$ne": userID},
+		})
+		if count > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email already taken"})
+			return
+		}
+	}
+
+	update := bson.M{}
+	if req.Username != "" {
+		update["username"] = req.Username
+	}
+	if req.Email != "" {
+		update["email"] = req.Email
+	}
+	update["updated_at"] = time.Now()
+
+	if len(update) == 1 { // only updated_at
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
+	}
+
+	_, err = h.usersCollection.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": update})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }

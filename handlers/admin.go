@@ -56,16 +56,16 @@ func (h *AdminHandler) GetStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"total_users":       totalUsers,
-		"total_books":       totalBooks,
-		"total_orders":      totalOrders,
-		"premium_users":     premiumUsers,
-		"total_revenue":     revenueResult.Total,
-		"admins":            admins,
-		"moderators":        moderators,
-		"pending_orders":    pendingOrders,
-		"completed_orders":  completedOrders,
-		"cancelled_orders":  cancelledOrders,
+		"total_users":      totalUsers,
+		"total_books":      totalBooks,
+		"total_orders":     totalOrders,
+		"premium_users":    premiumUsers,
+		"total_revenue":    revenueResult.Total,
+		"admins":           admins,
+		"moderators":       moderators,
+		"pending_orders":   pendingOrders,
+		"completed_orders": completedOrders,
+		"cancelled_orders": cancelledOrders,
 	})
 }
 
@@ -145,7 +145,7 @@ func (h *AdminHandler) UpdateUserRole(c *gin.Context) {
 	userID := c.Param("id")
 	objID, _ := primitive.ObjectIDFromHex(userID)
 	var req struct {
-		Role string `json:"role" binding:"required,oneof=customer Moderator Admin"`
+		Role string `json:"role" binding:"required,oneof=Customer Moderator Admin"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -207,4 +207,34 @@ func (h *AdminHandler) UpdateOrderStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order status updated"})
+}
+
+func (h *AdminHandler) UpdateDeliveryStatus(c *gin.Context) {
+	orderID := c.Param("id")
+	objID, _ := primitive.ObjectIDFromHex(orderID)
+
+	var req struct {
+		DeliveryStatus  string `json:"delivery_status" binding:"required,oneof=pending accepted in_transit delivered"`
+		DeliveryAddress string `json:"delivery_address"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := h.ordersCollection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{
+		"$set": bson.M{
+			"delivery_status":  req.DeliveryStatus,
+			"delivery_address": req.DeliveryAddress,
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Delivery status updated"})
 }
