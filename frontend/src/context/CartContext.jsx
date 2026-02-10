@@ -39,7 +39,18 @@ export const CartProvider = ({ children }) => {
 
     const removeFromCart = (bookId, formatType) => {
         const key = cartKey(bookId, formatType)
-        setCart((prev) => prev.filter((item) => cartKey(item.bookId, item.formatType) !== key))
+        setCart((prev) => {
+            const found = prev.find((item) => cartKey(item.bookId, item.formatType) === key)
+            if (found && found.quantity > 1) {
+                return prev.map((item) =>
+                    cartKey(item.bookId, item.formatType) === key
+                        ? { ...item, quantity: item.quantity - 1 }
+                        : item
+                )
+            } else {
+                return prev.filter((item) => cartKey(item.bookId, item.formatType) !== key)
+            }
+        })
     }
 
     const updateQuantity = (bookId, formatType, quantity) => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminAPI, bookAPI } from '../api.jsx'
 import { useAuth } from '../context/AuthContext'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
 const defaultFormats = [{ type: 'physical', price: 0, stock_quantity: 0, access_url: '' }, { type: 'digital', price: 0, stock_quantity: 0, access_url: '' }]
 
@@ -14,6 +15,7 @@ export default function AdminDashboard() {
     const [orders, setOrders] = useState([])
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
+    const [weeklyStats, setWeeklyStats] = useState([])
     const [showBookForm, setShowBookForm] = useState(false)
     const [editingBook, setEditingBook] = useState(null)
     const [bookForm, setBookForm] = useState({
@@ -29,7 +31,17 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         fetchData()
+        if (isAdmin) fetchWeeklyStats()
     }, [])
+
+    const fetchWeeklyStats = async () => {
+        try {
+            const res = await adminAPI.getWeeklySales()
+            setWeeklyStats(res.data || [])
+        } catch {
+            setWeeklyStats([])
+        }
+    }
 
     const fetchData = async () => {
         try {
@@ -198,9 +210,8 @@ export default function AdminDashboard() {
                 await bookAPI.updateBook(editingBook, payload)
                 setBooks(books.map(b => (b.id || b._id) === editingBook ? { ...b, ...payload } : b))
             } else {
-                const res = await bookAPI.createBook(payload)
-                const newBook = { id: res.data.id, ...payload }
-                setBooks([...books, newBook])
+                await bookAPI.createBook(payload)
+                fetchData(); // обновить список книг
             }
             setShowBookForm(false)
         } catch (err) {
@@ -243,17 +254,45 @@ export default function AdminDashboard() {
                 )}
 
                 {activeTab === 'stats' && stats && isAdmin && (
-                    <div className="admin-stats-grid">
-                        <div className="card stat-card"><p>Total Users</p><h2>{stats.total_users}</h2></div>
-                        <div className="card stat-card"><p>Total Books</p><h2>{stats.total_books}</h2></div>
-                        <div className="card stat-card"><p>Total Orders</p><h2>{stats.total_orders}</h2></div>
-                        <div className="card stat-card"><p>Premium Users</p><h2>{stats.premium_users}</h2></div>
-                        <div className="card stat-card"><p>Total Revenue</p><h2>${(stats.total_revenue || 0).toFixed(2)}</h2></div>
-                        <div className="card stat-card"><p>Admins</p><h2>{stats.admins}</h2></div>
-                        <div className="card stat-card"><p>Moderators</p><h2>{stats.moderators}</h2></div>
-                        <div className="card stat-card"><p>Pending Orders</p><h2>{stats.pending_orders}</h2></div>
-                        <div className="card stat-card"><p>Completed</p><h2>{stats.completed_orders}</h2></div>
-                    </div>
+                    <>
+                        <div className="admin-stats-grid">
+                            <div className="card stat-card"><p>Total Users</p><h2>{stats.total_users}</h2></div>
+                            <div className="card stat-card"><p>Total Books</p><h2>{stats.total_books}</h2></div>
+                            <div className="card stat-card"><p>Total Orders</p><h2>{stats.total_orders}</h2></div>
+                            <div className="card stat-card"><p>Premium Users</p><h2>{stats.premium_users}</h2></div>
+                            <div className="card stat-card"><p>Total Revenue</p><h2>${(stats.total_revenue || 0).toFixed(2)}</h2></div>
+                            <div className="card stat-card"><p>Admins</p><h2>{stats.admins}</h2></div>
+                            <div className="card stat-card"><p>Moderators</p><h2>{stats.moderators}</h2></div>
+                            <div className="card stat-card"><p>Pending Orders</p><h2>{stats.pending_orders}</h2></div>
+                            <div className="card stat-card"><p>Completed</p><h2>{stats.completed_orders}</h2></div>
+                        </div>
+                        {weeklyStats && weeklyStats.length > 0 && (
+                            <div style={{ marginTop: 32 }}>
+                                <h3>Weekly Sales (Orders)</h3>
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <BarChart data={weeklyStats} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="date" />
+                                        <YAxis allowDecimals={false} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="orders_count" name="Orders" fill="#8884d8" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                <h3 style={{ marginTop: 32 }}>Weekly Revenue ($)</h3>
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <LineChart data={weeklyStats} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="date" />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#82ca9d" strokeWidth={3} dot={{ r: 5 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {activeTab === 'books' && (

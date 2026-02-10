@@ -78,6 +78,7 @@ func SetupRoutes(
 	{
 		// admin only endpoints
 		admin.GET("/stats", middleware.AdminMiddleware(), adminHandler.GetStats)
+		admin.GET("/weekly-sales", middleware.AdminMiddleware(), adminHandler.GetWeeklySales)
 		// moderator and admin can view users, but only admin can modify
 		admin.GET("/users", middleware.ModeratorOrAdminMiddleware(), adminHandler.GetAllUsers)
 		admin.PUT("/users/:id/deactivate", middleware.AdminMiddleware(), adminHandler.DeactivateUser)
