@@ -34,23 +34,48 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         try {
             setLoading(true)
-            const promises = [bookAPI.getBooks().then(r => r.data || [])]
-            if (isAdmin) {
-                promises.push(
-                    adminAPI.getStats().then(r => r.data),
-                    adminAPI.getAllOrders().then(r => r.data || []),
-                    adminAPI.getAllUsers().then(r => r.data || []),
-                )
+
+            const booksPromise = bookAPI.getBooks()
+            const usersPromise = (isAdmin || isModerator) ? adminAPI.getAllUsers() : Promise.resolve({ data: [] })
+            const statsPromise = isAdmin ? adminAPI.getStats() : Promise.resolve({ data: null })
+            const ordersPromise = isAdmin ? adminAPI.getAllOrders() : Promise.resolve({ data: [] })
+
+            // Use allSettled so a single failing admin call (e.g. permissions) won't break loading books
+            const results = await Promise.allSettled([booksPromise, usersPromise, statsPromise, ordersPromise])
+
+            // books
+            if (results[0].status === 'fulfilled') {
+                setBooks(results[0].value.data || [])
+            } else {
+                setBooks([])
             }
-            const results = await Promise.all(promises)
-            setBooks(results[0])
-            if (isAdmin) {
-                setStats(results[1])
-                setOrders(results[2])
-                setUsers(results[3])
+
+            // users
+            if (results[1].status === 'fulfilled') {
+                setUsers(results[1].value.data || [])
+            } else {
+                setUsers([])
+            }
+
+            // stats
+            if (results[2].status === 'fulfilled') {
+                setStats(results[2].value.data)
+            } else {
+                setStats(null)
+            }
+
+            // orders
+            if (results[3].status === 'fulfilled') {
+                setOrders(results[3].value.data || [])
+            } else {
+                setOrders([])
             }
         } catch (err) {
-            alert('Failed to fetch admin data')
+            // fallback: set minimal state but don't block UI
+            setBooks([])
+            setUsers([])
+            setStats(null)
+            setOrders([])
         } finally {
             setLoading(false)
         }
@@ -203,19 +228,21 @@ export default function AdminDashboard() {
                         <>
                             <button className={`btn btn-small ${activeTab === 'stats' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('stats')}>Statistics</button>
                             <button className={`btn btn-small ${activeTab === 'orders' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('orders')}>Orders</button>
-                            <button className={`btn btn-small ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('users')}>Users</button>
                         </>
+                    )}
+                    {isAdmin && (
+                        <button className={`btn btn-small ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('users')}>Users</button>
                     )}
                     <button className={`btn btn-small ${activeTab === 'books' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('books')}>Books</button>
                 </div>
 
                 {isModerator && !isAdmin && (
                     <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
-                        📚 Moderator Dashboard - You can manage books and view store statistics.
+                        📚 Moderator Dashboard - You can manage books and view users (view only, no modifications).
                     </div>
                 )}
 
-                {activeTab === 'stats' && stats && (
+                {activeTab === 'stats' && stats && isAdmin && (
                     <div className="admin-stats-grid">
                         <div className="card stat-card"><p>Total Users</p><h2>{stats.total_users}</h2></div>
                         <div className="card stat-card"><p>Total Books</p><h2>{stats.total_books}</h2></div>
@@ -444,6 +471,42 @@ export default function AdminDashboard() {
                                 </tbody>
                             </table>
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'users' && isModerator && !isAdmin && (
+                    <div>
+                        <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>
+                            ℹ️ As a moderator, you can view users but cannot modify their accounts, roles, or premium status.
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                            {users.length === 0 ? (
+                                <div className="alert alert-info">No users</div>
+                            ) : (
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Username</th>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>Premium</th>
+                                            <th>Active</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {users.map((u) => (
+                                            <tr key={userId(u)}>
+                                                <td>{u.username}</td>
+                                                <td>{u.email}</td>
+                                                <td>{u.role || 'Customer'}</td>
+                                                <td>{u.is_premium ? 'Yes' : 'No'}</td>
+                                                <td>{u.is_active !== false ? '✓ Active' : '✗ Inactive'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
