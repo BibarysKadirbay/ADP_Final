@@ -5,7 +5,7 @@ import { useCart } from '../context/CartContext'
 
 export default function Header() {
     const navigate = useNavigate()
-    const { user, logout, isAdmin } = useAuth()
+    const { user, logout, isAdmin, isModerator } = useAuth()
     const { getTotalItems } = useCart()
 
     const handleLogout = () => {
@@ -29,7 +29,7 @@ export default function Header() {
                             <li><Link to="/library">Library</Link></li>
                             <li><Link to="/wishlist">Wishlist</Link></li>
                             <li><Link to="/orders">Orders</Link></li>
-                            {isAdmin && (
+                            {(isAdmin || isModerator) && (
                                 <li>
                                     <Link to="/admin"> Admin</Link>
                                 </li>
