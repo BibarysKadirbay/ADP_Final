@@ -283,9 +283,9 @@ export default function Profile() {
                                             💎 Upgrade to Premium - Only $22/month
                                         </p>
                                         <p style={{ margin: 0, color: '#2c5aa0', fontSize: '0.9rem', lineHeight: '1.4' }}>
-                                            ✓ 10% discount on all purchases<br/>
-                                            ✓ Free shipping on orders<br/>
-                                            ✓ Priority customer support<br/>
+                                            ✓ 10% discount on all purchases<br />
+                                            ✓ Free shipping on orders<br />
+                                            ✓ Priority customer support<br />
                                             ✓ Exclusive deals and offers
                                         </p>
                                     </div>

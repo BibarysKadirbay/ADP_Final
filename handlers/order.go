@@ -132,13 +132,13 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	discountedTotal := totalAmount * (1 - discount)
 
 	order := models.Order{
-		UserID:           userID,
-		Status:           "Pending",
-		TotalAmount:      discountedTotal,
-		ItemCount:        len(orderItems),
-		DeliveryAddress:  req.DeliveryAddress,
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		UserID:          userID,
+		Status:          "Pending",
+		TotalAmount:     discountedTotal,
+		ItemCount:       len(orderItems),
+		DeliveryAddress: req.DeliveryAddress,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	orderResult, err := h.ordersCollection.InsertOne(ctx, order)
@@ -435,15 +435,15 @@ func (h *OrderHandler) GetOrderByID(c *gin.Context) {
 	}
 
 	response := models.OrderResponse{
-		ID:               order.ID,
-		UserID:           order.UserID,
-		Status:           order.Status,
-		TotalAmount:      order.TotalAmount,
-		Items:            items,
-		DeliveryStatus:   order.DeliveryStatus,
-		DeliveryAddress:  order.DeliveryAddress,
-		CreatedAt:        order.CreatedAt,
-		UpdatedAt:        order.UpdatedAt,
+		ID:              order.ID,
+		UserID:          order.UserID,
+		Status:          order.Status,
+		TotalAmount:     order.TotalAmount,
+		Items:           items,
+		DeliveryStatus:  order.DeliveryStatus,
+		DeliveryAddress: order.DeliveryAddress,
+		CreatedAt:       order.CreatedAt,
+		UpdatedAt:       order.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, response)

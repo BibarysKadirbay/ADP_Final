@@ -29,7 +29,7 @@ type OrderItem struct {
 }
 
 type CreateOrderRequest struct {
-	Items             []struct {
+	Items []struct {
 		BookID     string `json:"book_id" binding:"required"`
 		FormatType string `json:"format_type" binding:"required,oneof=physical digital both"`
 		Quantity   int    `json:"quantity" binding:"required,gt=0"`
@@ -43,15 +43,15 @@ type OrderItemInput struct {
 }
 
 type OrderResponse struct {
-	ID               primitive.ObjectID  `json:"id"`
-	UserID           primitive.ObjectID  `json:"user_id"`
-	Status           string              `json:"status"`
-	TotalAmount      float64             `json:"total_amount"`
-	Items            []OrderItemResponse `json:"items"`
-	DeliveryStatus   string              `json:"delivery_status,omitempty"`
-	DeliveryAddress  string              `json:"delivery_address,omitempty"`
-	CreatedAt        time.Time           `json:"created_at"`
-	UpdatedAt        time.Time           `json:"updated_at"`
+	ID              primitive.ObjectID  `json:"id"`
+	UserID          primitive.ObjectID  `json:"user_id"`
+	Status          string              `json:"status"`
+	TotalAmount     float64             `json:"total_amount"`
+	Items           []OrderItemResponse `json:"items"`
+	DeliveryStatus  string              `json:"delivery_status,omitempty"`
+	DeliveryAddress string              `json:"delivery_address,omitempty"`
+	CreatedAt       time.Time           `json:"created_at"`
+	UpdatedAt       time.Time           `json:"updated_at"`
 }
 
 type OrderItemResponse struct {

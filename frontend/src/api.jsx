@@ -83,20 +83,20 @@ export const adminAPI = {
 };
 
 export const userAPI = {
-    getStats: () =>
-        apiClient.get('/admin/stats'),
-    getUsers: () =>
-        apiClient.get('/admin/users'),
-    deactivateUser: (id) =>
-        apiClient.put(`/admin/users/${id}/deactivate`),
-    upgradeToPremium: (id, data) =>
-        apiClient.put(`/admin/users/${id}/premium`, data),
-    deleteUser: (id) =>
-        apiClient.put(`/admin/users/${id}/deactivate`),
-    purchasePremium: () =>
-        apiClient.put('/users/premium'),
-    cancelPremium: () =>
-        apiClient.delete('/users/premium'),
+  getStats: () =>
+    apiClient.get('/admin/stats'),
+  getUsers: () =>
+    apiClient.get('/admin/users'),
+  deactivateUser: (id) =>
+    apiClient.put(`/admin/users/${id}/deactivate`),
+  upgradeToPremium: (id, data) =>
+    apiClient.put(`/admin/users/${id}/premium`, data),
+  deleteUser: (id) =>
+    apiClient.put(`/admin/users/${id}/deactivate`),
+  purchasePremium: () =>
+    apiClient.put('/users/premium'),
+  cancelPremium: () =>
+    apiClient.delete('/users/premium'),
 };
 
 export default apiClient;
