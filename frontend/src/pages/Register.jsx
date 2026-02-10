@@ -15,8 +15,8 @@ export default function Register() {
         e.preventDefault()
         setError('')
 
-        if (password.length < 6) {
-            setError('Password must be at least 6 characters')
+        if (password.length < 8 || /\s/.test(password)) {
+            setError('Password must be at least 8 characters and contain no spaces')
             return
         }
 
@@ -64,11 +64,11 @@ export default function Register() {
                         <input
                             type="password"
                             required
-                            minLength="6"
+                            minLength="8"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
-                        <small style={{ color: '#666' }}>Minimum 6 characters</small>
+                        <small style={{ color: '#666' }}>Minimum 8 characters, no spaces</small>
                     </div>
 
                     <button type="submit" className="btn btn-success btn-block" disabled={loading}>

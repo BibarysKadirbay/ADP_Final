@@ -13,7 +13,7 @@ export default function Library() {
     const fetchLibrary = async () => {
         try {
             setLoading(true)
-            const response = await digitalAPI.getLibrary()
+            const response = await digitalAPI.getPersonalLibrary()
             setLibrary(response.data)
         } catch (err) {
             setError('Failed to fetch your library')
@@ -61,14 +61,18 @@ export default function Library() {
                                 </div>
 
                                 <div className="card-footer">
-                                    <a
-                                        href={book.access_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="btn btn-primary btn-small"
-                                    >
-                                        Access Now
-                                    </a>
+                                    {book.access_url ? (
+                                        <a
+                                            href={book.access_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-primary btn-small"
+                                        >
+                                            Access Now
+                                        </a>
+                                    ) : (
+                                        <button className="btn btn-secondary btn-small" disabled>Not available</button>
+                                    )}
                                 </div>
                             </div>
                         ))}

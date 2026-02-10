@@ -88,7 +88,7 @@ func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 	}
 
 	var req struct {
-		Role string `json:"role" binding:"required,oneof=Customer Admin"`
+		Role string `json:"role" binding:"required,oneof=Customer Moderator Admin"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -149,6 +149,50 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
+func (h *UserHandler) PurchasePremium(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user context"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	premiumUntil := time.Now().AddDate(0, 0, 30) // 30 days
+
+	_, err = h.usersCollection.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{
+		"$set": bson.M{"is_premium": true, "premium_until": premiumUntil},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to purchase premium"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Premium purchased", "premium_until": premiumUntil})
+}
+
+func (h *UserHandler) CancelPremium(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user context"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = h.usersCollection.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{
+		"$set": bson.M{"is_premium": false, "premium_until": nil},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel premium"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Premium membership cancelled"})
 }
 
 func (h *UserHandler) GetUserStats(c *gin.Context) {

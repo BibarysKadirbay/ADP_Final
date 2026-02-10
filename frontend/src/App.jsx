@@ -13,9 +13,11 @@ import Books from './pages/Books'
 import BookDetail from './pages/BookDetail'
 import Cart from './pages/Cart'
 import Orders from './pages/Orders'
+import OrderDetails from './pages/OrderDetails'
 import Library from './pages/Library'
 import AdminDashboard from './pages/AdminDashboard'
 import Wishlist from './pages/Wishlist'
+import Profile from './pages/Profile'
 
 import './styles.css'
 
@@ -32,40 +34,56 @@ function AppRoutes() {
         <>
             <Header />
             <Routes>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
-                        <Route path="/books" element={<Books />} />
-                        <Route path="/books/:id" element={<BookDetail />} />
-                        <Route path="/cart" element={<Cart />} />
-                        <Route path="/wishlist" element={<Wishlist />} />
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/books" element={<Books />} />
+                <Route path="/books/:id" element={<BookDetail />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/wishlist" element={<Wishlist />} />
 
-                        <Route
-                            path="/orders"
-                            element={
-                                <ProtectedRoute>
-                                    <Orders />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/library"
-                            element={
-                                <ProtectedRoute>
-                                    <Library />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/admin"
-                            element={
-                                <ProtectedRoute moderatorOrAdmin>
-                                    <AdminDashboard />
-                                </ProtectedRoute>
-                            }
-                        />
+                <Route
+                    path="/orders"
+                    element={
+                        <ProtectedRoute>
+                            <Orders />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/orders/:orderId"
+                    element={
+                        <ProtectedRoute>
+                            <OrderDetails />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/library"
+                    element={
+                        <ProtectedRoute>
+                            <Library />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/admin"
+                    element={
+                        <ProtectedRoute moderatorOrAdmin>
+                            <AdminDashboard />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/profile"
+                    element={
+                        <ProtectedRoute>
+                            <Profile />
+                        </ProtectedRoute>
+                    }
+                />
 
-                        <Route path="*" element={<Navigate to="/" />} />
+                <Route path="*" element={<Navigate to="/" />} />
             </Routes>
             <footer>
                 <p>&copy; 2024 Bookstore. All rights reserved.</p>

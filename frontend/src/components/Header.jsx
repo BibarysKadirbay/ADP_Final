@@ -41,11 +41,49 @@ export default function Header() {
                 <div className="user-menu">
                     {user ? (
                         <>
-                            <div style={{ color: 'white', fontSize: '0.9rem' }}>
-                                {user.username}
-                                {isAdmin && <span style={{ marginLeft: '0.5rem', color: '#f39c12' }}>Admin</span>}
-                                {user.role === 'Moderator' && !isAdmin && <span style={{ marginLeft: '0.5rem', color: '#9b59b6' }}>Moderator</span>}
-                                {user.is_premium && <span style={{ marginLeft: '0.5rem', color: '#2ecc71' }}>Premium</span>}
+                            <div>
+                                <Link to="/profile" style={{ color: 'white', fontSize: '0.9rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    {user.username}
+                                    {isAdmin && (
+                                        <span style={{
+                                            display: 'inline-block',
+                                            backgroundColor: '#e74c3c',
+                                            color: 'white',
+                                            padding: '0.2rem 0.6rem',
+                                            borderRadius: '12px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            Admin
+                                        </span>
+                                    )}
+                                    {user.role === 'Moderator' && !isAdmin && (
+                                        <span style={{
+                                            display: 'inline-block',
+                                            backgroundColor: '#9b59b6',
+                                            color: 'white',
+                                            padding: '0.2rem 0.6rem',
+                                            borderRadius: '12px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            Moderator
+                                        </span>
+                                    )}
+                                    {user.is_premium && (
+                                        <span style={{
+                                            display: 'inline-block',
+                                            backgroundColor: '#f39c12',
+                                            color: 'white',
+                                            padding: '0.2rem 0.6rem',
+                                            borderRadius: '12px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            ⭐ Premium
+                                        </span>
+                                    )}
+                                </Link>
                             </div>
                             <Link to="/cart" style={{ position: 'relative', color: 'white', textDecoration: 'none' }}>
                                 Cart
