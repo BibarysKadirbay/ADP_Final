@@ -42,8 +42,8 @@ export const bookAPI = {
 };
 
 export const orderAPI = {
-  createOrder: (items) =>
-    apiClient.post('/orders', { items }),
+  createOrder: (orderData) =>
+    apiClient.post('/orders', orderData),
   getUserOrders: () =>
     apiClient.get('/orders'),
   getOrderById: (id) =>
@@ -80,6 +80,8 @@ export const adminAPI = {
     apiClient.put(`/admin/orders/${id}/delivery`, { delivery_status, delivery_address }),
   purchasePremium: () =>
     apiClient.put('/users/premium'),
+  getWeeklySales: () =>
+    apiClient.get('/admin/weekly-sales'),
 };
 
 export const userAPI = {

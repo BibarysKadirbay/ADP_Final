@@ -29,6 +29,14 @@ func main() {
 	routes.SetupRoutes(router, database.DB, cfg.JWTSecret)
 
 	router.Static("/assets", "./frontend/dist/assets")
+	// Для SPA: отдаём index.html для /admin и всех вложенных путей
+	router.GET("/admin", func(c *gin.Context) {
+		c.File("./frontend/dist/index.html")
+	})
+	router.GET("/admin/*any", func(c *gin.Context) {
+		c.File("./frontend/dist/index.html")
+	})
+	// Главная страница (если нужно)
 	router.StaticFile("/", "./frontend/dist/index.html")
 	router.NoRoute(func(c *gin.Context) {
 		c.File("./frontend/dist/index.html")

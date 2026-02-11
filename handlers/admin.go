@@ -11,6 +11,79 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// WeeklySalesDayStat описывает статистику за день
+type WeeklySalesDayStat struct {
+	Date        string  `json:"date"`
+	OrdersCount int     `json:"orders_count"`
+	Revenue     float64 `json:"revenue"`
+}
+
+// GetWeeklySales возвращает статистику продаж за последние 7 дней по дням
+func (h *AdminHandler) GetWeeklySales(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Получаем сегодняшнюю дату (без времени)
+	now := time.Now().Truncate(24 * time.Hour)
+	startDate := now.AddDate(0, 0, -6) // 6 дней назад + сегодня = 7 дней
+
+	// Агрегация по дням
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.M{
+			"status":     "Completed",
+			"created_at": bson.M{"$gte": startDate, "$lte": now.Add(24 * time.Hour)},
+		}}},
+		bson.D{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: bson.D{{Key: "$dateToString", Value: bson.D{{Key: "format", Value: "%Y-%m-%d"}, {Key: "date", Value: "$created_at"}}}}},
+			{Key: "orders_count", Value: bson.D{{Key: "$sum", Value: 1}}},
+			{Key: "revenue", Value: bson.D{{Key: "$sum", Value: "$total_amount"}}},
+		}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
+	}
+
+	cursor, err := h.ordersCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch weekly sales stats"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	// Собираем результат в map для быстрого доступа по дате
+	statsMap := make(map[string]WeeklySalesDayStat)
+	for cursor.Next(ctx) {
+		var row struct {
+			ID          string  `bson:"_id"`
+			OrdersCount int     `bson:"orders_count"`
+			Revenue     float64 `bson:"revenue"`
+		}
+		if err := cursor.Decode(&row); err == nil {
+			statsMap[row.ID] = WeeklySalesDayStat{
+				Date:        row.ID,
+				OrdersCount: row.OrdersCount,
+				Revenue:     row.Revenue,
+			}
+		}
+	}
+
+	// Формируем массив за 7 дней (даже если в какой-то день не было покупок)
+	var stats []WeeklySalesDayStat
+	for i := 0; i < 7; i++ {
+		d := startDate.AddDate(0, 0, i)
+		key := d.Format("2006-01-02")
+		if s, ok := statsMap[key]; ok {
+			stats = append(stats, s)
+		} else {
+			stats = append(stats, WeeklySalesDayStat{
+				Date:        key,
+				OrdersCount: 0,
+				Revenue:     0,
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
 type AdminHandler struct {
 	usersCollection  *mongo.Collection
 	booksCollection  *mongo.Collection
